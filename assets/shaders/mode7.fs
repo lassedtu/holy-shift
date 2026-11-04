@@ -1,0 +1,43 @@
+#version 330
+
+// Draw the ground of the level as a flat plane that the camera looks at
+// Rows above the horizon show the sky, far ground fades into the sky
+
+uniform sampler2D levelTexture;
+uniform vec2 resolution; // size of the view in pixels
+uniform vec2 mapSize;    // size of the level texture in map pixels
+uniform vec2 camPos;     // position of the camera in the map
+uniform vec2 camDir;     // direction of the camera in the map
+uniform float camHeight;
+uniform float focal;     // focal length in pixels
+uniform float horizon;   // rows between the top of the view and the horizon
+uniform vec3 skyColor;
+uniform vec3 outsideColor;
+uniform vec2 fog;        // start and end distance of the fade
+
+out vec4 finalColor;
+
+void main()
+{
+    float row = resolution.y - gl_FragCoord.y; // rows from the top of the view
+    float below = row - horizon;
+    if (below < 0.5)
+    {
+        finalColor = vec4(skyColor, 1.0);
+        return;
+    }
+
+    float depth = camHeight * focal / below;
+    float side = (gl_FragCoord.x - 0.5 * resolution.x) / focal * depth;
+    vec2 right = vec2(-camDir.y, camDir.x);
+    vec2 ground = camPos + camDir * depth + right * side;
+    vec2 uv = ground / mapSize;
+
+    vec3 color = outsideColor;
+    if (uv.x >= 0.0 && uv.x < 1.0 && uv.y >= 0.0 && uv.y < 1.0)
+    {
+        color = textureLod(levelTexture, uv, 0.0).rgb;
+    }
+    float amount = smoothstep(fog.x, fog.y, depth);
+    finalColor = vec4(mix(color, skyColor, amount), 1.0);
+}
