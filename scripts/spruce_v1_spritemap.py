@@ -7,7 +7,7 @@ Run this command from the project root:
 
     /Applications/Blender.app/Contents/MacOS/Blender -b \
         assets_raw/ee_low_poly_trees/low_poly_trees.blend \
-        --python scripts/spruce_v1_spritemap.py -- [--out assets] [--ppu 12]
+        --python scripts/spruce_v1_spritemap.py -- --out assets --ppu 12
 
 The sprite sheet has 48 columns and four rows. Column 0 views the tree from
 the -Y side. The camera moves counter-clockwise when viewed from above. Row 0

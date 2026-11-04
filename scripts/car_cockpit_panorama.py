@@ -13,8 +13,8 @@ Run this command from the project root:
 
     /Applications/Blender.app/Contents/MacOS/Blender -b \
         "assets_raw/Retro Car1.0/Car Asset.blend" \
-        --python scripts/car_cockpit_panorama.py -- [--out assets] \
-        [--scale 2] [--samples 64]
+        --python scripts/car_cockpit_panorama.py -- \
+        --out assets --scale 2 --samples 64
 
 Use the panorama as an equirectangular strip. Column x is a yaw angle and
 row y is an elevation angle:
