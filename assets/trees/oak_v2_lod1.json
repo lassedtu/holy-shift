@@ -1,0 +1,22 @@
+{
+  "image": "oak_v2_lod1.png",
+  "cell_width": 140,
+  "cell_height": 166,
+  "columns": 16,
+  "rows": 2,
+  "azimuth_step_deg": 22.5,
+  "look_up_deg": [
+    0.0,
+    8.0
+  ],
+  "pixels_per_unit": 6.0,
+  "tree_height_units": 23.962,
+  "row_anchor_x": [
+    70.0,
+    70.0
+  ],
+  "row_anchor_y": [
+    154.88,
+    154.19
+  ]
+}

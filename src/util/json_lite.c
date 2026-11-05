@@ -80,6 +80,38 @@ int JsonReadNumberArray(const char *text, const char *key, float *values, int ma
     }
 }
 
+bool JsonArrayHasString(const char *text, const char *key, const char *value, bool *found)
+{
+    const char *position = JsonFindKey(text, key);
+    position = position == NULL ? NULL : strchr(position, '[');
+    if (position == NULL)
+    {
+        return false;
+    }
+    position++;
+
+    *found = false;
+    for (;;)
+    {
+        position = JsonSkip(position, ",");
+        if (*position != '"')
+        {
+            return *position == ']';
+        }
+        position++;
+        const char *end = strchr(position, '"');
+        if (end == NULL)
+        {
+            return false;
+        }
+        if (strlen(value) == (size_t)(end - position) && strncmp(position, value, (size_t)(end - position)) == 0)
+        {
+            *found = true;
+        }
+        position = end + 1;
+    }
+}
+
 const char *JsonSkip(const char *position, const char *skip)
 {
     while (*position != '\0' &&

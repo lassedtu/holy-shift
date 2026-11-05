@@ -11,6 +11,7 @@
 //   Name box                : click to type the level name
 //   Export button           : save to levels/<name>/
 //   Open button             : load levels/<name>/level.json for editing
+//   Tree buttons            : choose the species of trees around the road
 //
 // Run from the project root:
 //   make -C level-builder run
@@ -20,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "level/tree_species.h"
 #include "raylib.h"
 #include "raymath.h"
 
@@ -55,6 +57,7 @@ typedef struct
     Vector2 points[MAX_POINTS];
     int count;
     bool closed; // the last point connects to the first point
+    bool trees[TREE_SPECIES_COUNT]; // the species of trees around the road
 } Level;
 
 static Level undo_stack[MAX_UNDO];
@@ -211,6 +214,17 @@ static bool ExportLevel(const Level *level, const char *name, char *message,
             COLOR_ROAD.b);
     fprintf(file, "  },\n");
     fprintf(file, "  \"closed\": %s,\n", level->closed ? "true" : "false");
+    fprintf(file, "  \"trees\": [");
+    bool first_tree = true;
+    for (int i = 0; i < TREE_SPECIES_COUNT; i++)
+    {
+        if (level->trees[i])
+        {
+            fprintf(file, "%s\"%s\"", first_tree ? "" : ", ", TREE_SPECIES_NAMES[i]);
+            first_tree = false;
+        }
+    }
+    fprintf(file, "],\n");
     fprintf(file, "  \"points\": [\n");
     for (int i = 0; i < level->count; i++)
     {
@@ -330,6 +344,23 @@ static bool LoadLevel(const char *name, Level *level, char *message,
         loaded.closed = strncmp(SkipTo(closed, ""), "true", 4) == 0;
     }
 
+    // A level without a list of trees has the default species
+    const char *trees = FindKey(text, "trees");
+    trees = trees == NULL ? NULL : strchr(trees, '[');
+    if (trees == NULL)
+    {
+        loaded.trees[TREE_SPECIES_DEFAULT] = true;
+    }
+    else
+    {
+        const char *list_end = strchr(trees, ']');
+        for (int i = 0; i < TREE_SPECIES_COUNT; i++)
+        {
+            const char *entry = strstr(trees, TextFormat("\"%s\"", TREE_SPECIES_NAMES[i]));
+            loaded.trees[i] = entry != NULL && list_end != NULL && entry < list_end;
+        }
+    }
+
     const char *position = FindKey(text, "points");
     position = position == NULL ? NULL : strchr(position, '[');
     if (position == NULL)
@@ -415,6 +446,7 @@ int main(void)
     SetTargetFPS(60);
 
     Level level = {.count = 0, .closed = false};
+    level.trees[TREE_SPECIES_DEFAULT] = true;
     Vector2 *curve = NULL;
     int curve_count = 0;
 
@@ -425,6 +457,11 @@ int main(void)
     Rectangle export_button = {10, 6, 100, TOOLBAR_H - 12};
     Rectangle open_button = {120, 6, 80, TOOLBAR_H - 12};
     Rectangle name_box = {210, 6, 220, TOOLBAR_H - 12};
+    Rectangle tree_buttons[TREE_SPECIES_COUNT];
+    for (int i = 0; i < TREE_SPECIES_COUNT; i++)
+    {
+        tree_buttons[i] = (Rectangle){440.0f + (float)i * 76.0f, 6, 72, TOOLBAR_H - 12};
+    }
     char name[MAX_NAME + 1] = "level1";
     int name_length = (int)strlen(name);
     bool name_focus = false;
@@ -546,7 +583,18 @@ int main(void)
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
         {
             name_focus = CheckCollisionPointRec(mouse, name_box);
-            if (CheckCollisionPointRec(mouse, export_button))
+            int clicked_tree = -1;
+            for (int i = 0; i < TREE_SPECIES_COUNT; i++)
+            {
+                if (CheckCollisionPointRec(mouse, tree_buttons[i]))
+                    clicked_tree = i;
+            }
+            if (clicked_tree >= 0)
+            {
+                PushUndo(&level);
+                level.trees[clicked_tree] = !level.trees[clicked_tree];
+            }
+            else if (CheckCollisionPointRec(mouse, export_button))
             {
                 ExportLevel(&level, name, message, sizeof(message));
                 message_time = MESSAGE_SECONDS;
@@ -663,10 +711,28 @@ int main(void)
             int cursor_x = (int)name_box.x + 8 + MeasureText(name, 18) + 1;
             DrawRectangle(cursor_x, (int)name_box.y + 5, 2, 20, WHITE);
         }
+        for (int i = 0; i < TREE_SPECIES_COUNT; i++)
+        {
+            bool over_tree = CheckCollisionPointRec(mouse, tree_buttons[i]);
+            Color fill = level.trees[i] ? (Color){40, 120, 60, 255} : (Color){60, 60, 60, 255};
+            if (over_tree)
+            {
+                fill = level.trees[i] ? (Color){60, 150, 80, 255} : (Color){90, 90, 90, 255};
+            }
+            DrawRectangleRec(tree_buttons[i], fill);
+            if (level.trees[i])
+                DrawRectangleLinesEx(tree_buttons[i], 1.0f, (Color){140, 220, 150, 255});
+            char label[TREE_VARIANT_NAME_MAX];
+            snprintf(label, sizeof(label), "%s", TREE_SPECIES_NAMES[i]);
+            label[0] = (char)toupper((unsigned char)label[0]);
+            int label_w = MeasureText(label, 16);
+            DrawText(label, (int)(tree_buttons[i].x + (tree_buttons[i].width - (float)label_w) / 2.0f),
+                     (int)tree_buttons[i].y + 7, 16, WHITE);
+        }
         DrawText(TextFormat("Points: %d%s   Zoom: %d%%", level.count,
                             level.closed ? " (closed)" : "",
                             (int)roundf(zoom * 100.0f)),
-                 450, 11, 18, LIGHTGRAY);
+                 450 + TREE_SPECIES_COUNT * 76 + 10, 11, 18, LIGHTGRAY);
         if (message_time > 0.0f)
         {
             int message_w = MeasureText(message, 18);

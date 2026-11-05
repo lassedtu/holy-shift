@@ -18,6 +18,10 @@ bool JsonReadBool(const char *text, const char *key, bool *value);
 // Read an array of numbers that follows a key, return the count or -1 on error
 int JsonReadNumberArray(const char *text, const char *key, float *values, int max_count);
 
+// Look in an array of strings that follows a key for a string
+// Return false when the key or the array is missing, found tells if the string is in the array
+bool JsonArrayHasString(const char *text, const char *key, const char *value, bool *found);
+
 // Skip spaces and the characters in skip, then return the next character
 const char *JsonSkip(const char *position, const char *skip);
 

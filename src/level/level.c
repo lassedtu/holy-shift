@@ -58,6 +58,34 @@ bool LevelFindFirst(char *name, size_t size)
     return found;
 }
 
+int LevelTreeVariants(const Level *level, char names[TREE_MAX_VARIANTS][TREE_VARIANT_NAME_MAX])
+{
+    int count = 0;
+    for (int species = 0; species < TREE_SPECIES_COUNT; species++)
+    {
+        for (int variant = 1; level->trees[species] && variant <= TREE_VARIANTS_PER_SPECIES; variant++)
+        {
+            snprintf(names[count++], TREE_VARIANT_NAME_MAX, "%s_v%d", TREE_SPECIES_NAMES[species], variant);
+        }
+    }
+    return count;
+}
+
+// Read the species of trees, a level without a list of trees has the default species
+static void ReadTrees(const char *text, Level *level)
+{
+    bool found = false;
+    if (!JsonArrayHasString(text, "trees", TREE_SPECIES_NAMES[0], &found))
+    {
+        level->trees[TREE_SPECIES_DEFAULT] = true;
+        return;
+    }
+    for (int species = 0; species < TREE_SPECIES_COUNT; species++)
+    {
+        JsonArrayHasString(text, "trees", TREE_SPECIES_NAMES[species], &level->trees[species]);
+    }
+}
+
 // Read the list of points, return false if a point is not valid
 static bool ReadPoints(const char *text, Level *level)
 {
@@ -130,6 +158,8 @@ bool LevelLoad(Level *level, const char *name, char *message, size_t size)
 
     // A level without the closed key has an open curve
     JsonReadBool(text, "closed", &loaded.closed);
+
+    ReadTrees(text, &loaded);
 
     if (!ReadPoints(text, &loaded))
     {

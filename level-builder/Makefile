@@ -1,8 +1,8 @@
 RAYLIB ?= /opt/homebrew
-CFLAGS ?= -O2 -Wall -Wextra -I$(RAYLIB)/include
+CFLAGS ?= -O2 -Wall -Wextra -I$(RAYLIB)/include -I../src
 LDFLAGS ?= -L$(RAYLIB)/lib -Wl,-rpath,$(RAYLIB)/lib -lraylib
 
-../build/level_builder: level_builder.c
+../build/level_builder: level_builder.c ../src/level/tree_species.h
 	mkdir -p ../build
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
 

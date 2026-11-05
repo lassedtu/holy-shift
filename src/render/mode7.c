@@ -7,6 +7,17 @@
 #include "core/config.h"
 #include "render/shader_util.h"
 
+float Mode7Focal(void)
+{
+    return (VIEW_WIDTH / 2.0f) / tanf(VIEW_HFOV_DEG * 0.5f * DEG2RAD);
+}
+
+// The horizon is where the eye level is in the tilted view of the cabin
+float Mode7Horizon(void)
+{
+    return VIEW_HEIGHT / 2.0f - Mode7Focal() * tanf(VIEW_PITCH_DEG * DEG2RAD);
+}
+
 bool Mode7Init(Mode7 *mode7, char *message, size_t size)
 {
     *mode7 = (Mode7){0};
@@ -24,9 +35,8 @@ bool Mode7Init(Mode7 *mode7, char *message, size_t size)
     }
     SetTextureFilter(mode7->target.texture, TEXTURE_FILTER_POINT);
 
-    // The horizon is where the eye level is in the tilted view of the cabin
-    float focal = (VIEW_WIDTH / 2.0f) / tanf(VIEW_HFOV_DEG * 0.5f * DEG2RAD);
-    float horizon = VIEW_HEIGHT / 2.0f - focal * tanf(VIEW_PITCH_DEG * DEG2RAD);
+    float focal = Mode7Focal();
+    float horizon = Mode7Horizon();
 
     Shader shader = mode7->shader;
     ShaderSetVec2(shader, "resolution", VIEW_WIDTH, VIEW_HEIGHT);
@@ -34,6 +44,11 @@ bool Mode7Init(Mode7 *mode7, char *message, size_t size)
     ShaderSetFloat(shader, "focal", focal);
     ShaderSetFloat(shader, "horizon", horizon);
     ShaderSetColor(shader, "skyColor", COLOR_SKY);
+    ShaderSetColor(shader, "fogColor", COLOR_FOG);
+    // The tops of the tallest trees at the end of the fog are this many rows over the horizon
+    float tallest = TREE_HAZE_UNITS * TREE_MAP_PIXELS_PER_UNIT * TREE_SCALE_MAX - CAMERA_HEIGHT;
+    ShaderSetFloat(shader, "hazeHeight", tallest * focal / FOG_END);
+    ShaderSetFloat(shader, "hazeFade", HAZE_FADE);
     ShaderSetColor(shader, "outsideColor", COLOR_OUTSIDE);
     ShaderSetVec2(shader, "fog", FOG_START, FOG_END);
     return true;

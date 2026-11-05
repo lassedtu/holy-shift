@@ -11,11 +11,13 @@
 #include "car/path_driver.h"
 #include "core/game_mode.h"
 #include "core/options.h"
+#include "level/forest.h"
 #include "level/level.h"
 #include "level/level_textures.h"
 #include "level/track.h"
 #include "render/cockpit.h"
 #include "render/mode7.h"
+#include "render/trees.h"
 
 // Everything of the running game
 // The car is moved by a driver, the other parts only read the state of the car
@@ -25,6 +27,7 @@ typedef struct Game
     GameMode mode;
     Level level;
     Track track;
+    Forest forest;
     LevelTextures textures;
 
     Car car;
@@ -36,6 +39,7 @@ typedef struct Game
     bool mouse_ready; // false until the first frame, the first mouse movement is not valid
 
     Mode7 mode7;
+    Trees trees;
     Cockpit cockpit;
 } Game;
 

@@ -1,0 +1,19 @@
+{
+  "image": "maple_v1_lod2.png",
+  "cell_width": 83,
+  "cell_height": 86,
+  "columns": 4,
+  "rows": 1,
+  "azimuth_step_deg": 90.0,
+  "look_up_deg": [
+    0.0
+  ],
+  "pixels_per_unit": 2.0815270829863137,
+  "tree_height_units": 34.905,
+  "row_anchor_x": [
+    41.5
+  ],
+  "row_anchor_y": [
+    79.58
+  ]
+}

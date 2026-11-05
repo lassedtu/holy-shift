@@ -1,0 +1,22 @@
+{
+  "image": "birch_v1_lod1.png",
+  "cell_width": 101,
+  "cell_height": 153,
+  "columns": 16,
+  "rows": 2,
+  "azimuth_step_deg": 22.5,
+  "look_up_deg": [
+    0.0,
+    8.0
+  ],
+  "pixels_per_unit": 6.0,
+  "tree_height_units": 25.118,
+  "row_anchor_x": [
+    50.5,
+    50.5
+  ],
+  "row_anchor_y": [
+    151.85,
+    151.12
+  ]
+}

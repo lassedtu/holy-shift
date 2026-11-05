@@ -1,7 +1,7 @@
 #version 330
 
 // Draw the ground of the level as a flat plane that the camera looks at
-// Rows above the horizon show the sky, far ground fades into the sky
+// Rows above the horizon show the sky, which has the color of the fog at the horizon
 
 uniform sampler2D levelTexture;
 uniform vec2 resolution; // size of the view in pixels
@@ -12,6 +12,9 @@ uniform float camHeight;
 uniform float focal;     // focal length in pixels
 uniform float horizon;   // rows between the top of the view and the horizon
 uniform vec3 skyColor;
+uniform vec3 fogColor;
+uniform float hazeHeight; // rows over the horizon where the sky is still the color of the fog
+uniform float hazeFade;   // rows over which the fog changes into the sky
 uniform vec3 outsideColor;
 uniform vec2 fog;        // start and end distance of the fade
 
@@ -23,7 +26,9 @@ void main()
     float below = row - horizon;
     if (below < 0.5)
     {
-        finalColor = vec4(skyColor, 1.0);
+        // The far trees fade into the fog, so the sky near the horizon has the color of the fog
+        float height = -below;
+        finalColor = vec4(mix(fogColor, skyColor, smoothstep(hazeHeight, hazeHeight + hazeFade, height)), 1.0);
         return;
     }
 
@@ -39,5 +44,5 @@ void main()
         color = textureLod(levelTexture, uv, 0.0).rgb;
     }
     float amount = smoothstep(fog.x, fog.y, depth);
-    finalColor = vec4(mix(color, skyColor, amount), 1.0);
+    finalColor = vec4(mix(color, fogColor, amount), 1.0);
 }

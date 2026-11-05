@@ -1,0 +1,19 @@
+{
+  "image": "spruce_v1_lod2.png",
+  "cell_width": 42,
+  "cell_height": 72,
+  "columns": 4,
+  "rows": 1,
+  "azimuth_step_deg": 90.0,
+  "look_up_deg": [
+    0.0
+  ],
+  "pixels_per_unit": 3.0,
+  "tree_height_units": 23.546,
+  "row_anchor_x": [
+    21.0
+  ],
+  "row_anchor_y": [
+    71.57
+  ]
+}

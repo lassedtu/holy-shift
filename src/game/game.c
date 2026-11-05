@@ -35,8 +35,16 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
         return false;
     }
 
+    if (!ForestBuild(&game->forest, &game->level, &game->track))
+    {
+        snprintf(message, size, "Could not place the trees for \"%s\"", name);
+        GameShutdown(game);
+        return false;
+    }
+
     bool loaded = LevelTexturesLoad(&game->textures, &game->level, message, size) &&
                   Mode7Init(&game->mode7, message, size) &&
+                  TreesInit(&game->trees, &game->level, message, size) &&
                   CockpitLoad(&game->cockpit, message, size);
     if (!loaded)
     {
@@ -69,8 +77,10 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
 void GameShutdown(Game *game)
 {
     CockpitUnload(&game->cockpit);
+    TreesUnload(&game->trees);
     Mode7Unload(&game->mode7);
     LevelTexturesUnload(&game->textures);
+    ForestUnload(&game->forest);
     TrackUnload(&game->track);
 }
 
@@ -109,6 +119,7 @@ void GameDraw(Game *game)
     Vector2 position = fly ? game->fly.position : game->car.position;
     float heading = fly ? game->fly.heading : game->car.heading + game->head.yaw * DEG2RAD;
     Mode7Render(&game->mode7, game->textures.visual, position, heading);
+    TreesRender(&game->trees, &game->forest, game->mode7.target, position, heading);
 
     Rectangle destination = PresentDestination(GetScreenWidth(), GetScreenHeight());
     BeginDrawing();

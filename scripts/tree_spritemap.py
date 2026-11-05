@@ -1,22 +1,30 @@
-"""Create a pixel-art sprite sheet from the Spruce_V1 collection in Blender 5.x.
+"""Create pixel-art sprite sheets of the trees in the Blender file (Blender 5.x).
 
-The script renders 48 camera directions at four upward camera angles. It saves
-the frames in one PNG file and writes the layout data to a JSON file.
+Each tree is a collection named <Species>_V<number>, for example Spruce_V1.
+The script renders 48 camera directions at two upward camera angles. It saves
+the frames of each tree in one PNG file and writes the layout data to a JSON
+file. The files are named after the collection, for example spruce_v1.png.
 
-Run this command from the project root:
+Run this command from the project root to make the sheets of all trees:
 
     /Applications/Blender.app/Contents/MacOS/Blender -b \
         assets_raw/ee_low_poly_trees/low_poly_trees.blend \
-        --python scripts/spruce_v1_spritemap.py -- --out assets --ppu 12
+        --python scripts/tree_spritemap.py -- --out assets/trees
 
-The sprite sheet has 48 columns and four rows. Column 0 views the tree from
+Add --tree Spruce_V1 (one or more times) to make only some trees. Add --ppu 12
+to change the pixel density. Use scripts/tree_lods.py afterwards to make the
+smaller sheets.
+
+The sprite sheet has 48 columns and two rows. Column 0 views the tree from
 the -Y side. The camera moves counter-clockwise when viewed from above. Row 0
-uses the smallest upward angle. The camera points at the centre of the tree's
-bounding box. The JSON file gives the trunk base position in each cell.
+uses the smallest upward angle. The camera turns around the vertical line through
+the trunk base and looks at the middle of the tree's height. The JSON file gives
+the trunk base position in each row.
 """
 import json
 import math
 import os
+import re
 import struct
 import sys
 import tempfile
@@ -27,12 +35,13 @@ import numpy as np
 from mathutils import Vector
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DEFAULT_OUTPUT_DIR = os.path.join(PROJECT_ROOT, "assets")
+DEFAULT_OUTPUT_DIR = os.path.join(PROJECT_ROOT, "assets", "trees")
 
-COLLECTION_NAME = "Spruce_V1"
+TREE_NAME_PATTERN = re.compile(r"^[A-Za-z]+_V\d+$")  # Collections that are trees.
 AZIMUTH_STEPS = 48
-LOOK_UP_DEG = [5.0, 15.0, 25.0, 35.0]  # One upward camera angle for each row.
+LOOK_UP_DEG = [0.0, 8.0]  # One upward camera angle for each row.
 PIXELS_PER_UNIT = 12.0                  # Scale from Blender units to pixels.
+MAX_SHEET_WIDTH_PX = 16000              # Largest sheet width that GPUs accept.
 PADDING_PX = 1                          # Border width around each frame.
 PALETTE_COLORS = 16                     # Size of the palette shared by all frames.
 ALPHA_THRESHOLD = 0.5                   # Alpha cutoff for solid pixels.
@@ -42,12 +51,10 @@ SUN_STRENGTH = 3.0
 AMBIENT_COLOR = (0.55, 0.65, 0.85)
 AMBIENT_STRENGTH = 1.0
 
-OUTPUT_NAME = "spruce_v1_spritemap"
-
 
 def parse_args():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-    out_dir, ppu = DEFAULT_OUTPUT_DIR, PIXELS_PER_UNIT
+    out_dir, ppu, trees = DEFAULT_OUTPUT_DIR, PIXELS_PER_UNIT, []
     i = 0
     while i < len(argv):
         if argv[i] == "--out":
@@ -56,9 +63,18 @@ def parse_args():
         elif argv[i] == "--ppu":
             ppu = float(argv[i + 1])
             i += 2
+        elif argv[i] == "--tree":
+            trees.append(argv[i + 1])
+            i += 2
         else:
             raise SystemExit(f"Unknown argument: {argv[i]}")
-    return out_dir, ppu
+    return out_dir, ppu, trees
+
+
+def find_tree_names():
+    """Return the names of all tree collections in the file."""
+    names = [c.name for c in bpy.data.collections if TREE_NAME_PATTERN.match(c.name)]
+    return sorted(names)
 
 
 def write_png(path, rgba):
@@ -145,6 +161,12 @@ def make_materials_matte(objects):
 def setup_scene(tree_objects, res_w, res_h, ortho_scale, ppu_shift_y):
     scene = bpy.context.scene
     keep = set(tree_objects)
+
+    # Remove the light and the camera of the previous tree.
+    for name in ("SpriteSun", "SpriteCam"):
+        old = bpy.data.objects.get(name)
+        if old is not None:
+            bpy.data.objects.remove(old)
 
     for ob in scene.objects:
         ob.hide_render = ob not in keep
@@ -247,26 +269,26 @@ def to_pixel_art(frame, palette):
     return out
 
 
-def main():
-    out_dir, ppu = parse_args()
-    if not os.path.isabs(out_dir):
-        out_dir = os.path.join(PROJECT_ROOT, out_dir)
-    out_dir = os.path.abspath(out_dir)
-    os.makedirs(out_dir, exist_ok=True)
-
-    coll = bpy.data.collections.get(COLLECTION_NAME)
+def render_tree(collection_name, out_dir, ppu):
+    """Render all views of one tree collection and write its sheet and JSON file."""
+    output_name = collection_name.lower()
+    coll = bpy.data.collections.get(collection_name)
     if coll is None:
-        raise SystemExit(f"Collection '{COLLECTION_NAME}' not found")
-    enable_collection(COLLECTION_NAME)
+        raise SystemExit(f"Collection '{collection_name}' not found")
+    enable_collection(collection_name)
     tree_objects = [o for o in coll.all_objects if o.type == 'MESH']
     make_materials_matte(tree_objects)
 
     verts = collect_world_vertices(tree_objects)
     xs, ys, zs = zip(*verts)
-    center = Vector(((min(xs) + max(xs)) / 2,
-                     (min(ys) + max(ys)) / 2,
-                     (min(zs) + max(zs)) / 2))
-    base = Vector((center.x, center.y, min(zs)))   # Position of the trunk base.
+    # The trunk base is the mean of the lowest vertices. The camera turns around
+    # the vertical line through the trunk base, so the base is at the same pixel
+    # in every direction, even when the crown is not above the trunk.
+    low = [v for v in verts if v.z < min(zs) + 0.05]
+    base = Vector((sum(v.x for v in low) / len(low),
+                   sum(v.y for v in low) / len(low),
+                   min(zs)))
+    center = Vector((base.x, base.y, (min(zs) + max(zs)) / 2))
 
     azimuths = [math.radians(i * 360.0 / AZIMUTH_STEPS)
                 for i in range(AZIMUTH_STEPS)]
@@ -282,8 +304,13 @@ def main():
                 max_x = max(max_x, abs(p.x))
                 max_y = max(max_y, abs(p.y))
 
-    cell_w = int(math.ceil(2 * max_x * ppu)) + 2 * PADDING_PX
-    cell_h = int(math.ceil(2 * max_y * ppu)) + 2 * PADDING_PX
+    # Lower the pixel density of a wide tree, so the sheet fits in a texture
+    while True:
+        cell_w = int(math.ceil(2 * max_x * ppu)) + 2 * PADDING_PX
+        cell_h = int(math.ceil(2 * max_y * ppu)) + 2 * PADDING_PX
+        if cell_w * AZIMUTH_STEPS <= MAX_SHEET_WIDTH_PX:
+            break
+        ppu *= 0.97
     # Use even dimensions to keep the tree axis between pixel columns.
     cell_w += cell_w % 2
     cell_h += cell_h % 2
@@ -321,11 +348,12 @@ def main():
                            axis=1)
             for r in range(len(LOOK_UP_DEG))]
     sheet = np.concatenate(rows, axis=0)
-    png_path = os.path.join(out_dir, OUTPUT_NAME + ".png")
+    png_path = os.path.join(out_dir, output_name + ".png")
     write_png(png_path, sheet)
 
     meta = {
-        "image": OUTPUT_NAME + ".png",
+        "name": output_name,
+        "image": output_name + ".png",
         "cell_width": cell_w,
         "cell_height": cell_h,
         "columns": AZIMUTH_STEPS,
@@ -338,12 +366,26 @@ def main():
         "tree_height_units": round(max(zs) - min(zs), 3),
         # Each anchor gives the trunk base pixel as [x, y] within its cell.
         "anchors": anchors,
+        # The trunk base is the same in all directions of a row
+        "row_anchor_x": [row[0][0] for row in anchors],
+        "row_anchor_y": [row[0][1] for row in anchors],
     }
-    with open(os.path.join(out_dir, OUTPUT_NAME + ".json"), "w") as f:
+    with open(os.path.join(out_dir, output_name + ".json"), "w") as f:
         json.dump(meta, f, indent=2)
 
     print(f"Wrote {png_path} ({sheet.shape[1]}x{sheet.shape[0]}, "
           f"cell {cell_w}x{cell_h})")
+
+
+def main():
+    out_dir, ppu, trees = parse_args()
+    if not os.path.isabs(out_dir):
+        out_dir = os.path.join(PROJECT_ROOT, out_dir)
+    out_dir = os.path.abspath(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
+
+    for name in trees or find_tree_names():
+        render_tree(name, out_dir, ppu)
 
 
 main()

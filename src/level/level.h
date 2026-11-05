@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "level/tree_species.h"
 #include "raylib.h"
 
 #define LEVEL_MAX_POINTS 512
@@ -20,10 +21,14 @@ typedef struct Level
     int map_width;
     int map_height;
     int road_width;
+    bool trees[TREE_SPECIES_COUNT]; // the species of trees around the road
 } Level;
 
 // Load a level by its folder name, write the reason in message when it fails
 bool LevelLoad(Level *level, const char *name, char *message, size_t size);
+
+// Write the names of the variants of the selected tree species, for example "spruce_v1", return the count
+int LevelTreeVariants(const Level *level, char names[TREE_MAX_VARIANTS][TREE_VARIANT_NAME_MAX]);
 
 // Write the path of a file in the folder of the level
 void LevelFilePath(const Level *level, const char *file, char *path, size_t size);

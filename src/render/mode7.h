@@ -6,13 +6,18 @@
 
 #include "raylib.h"
 
-// The view of the road: the ground of the level seen from the camera, with a blue sky
+// The view of the road: the ground of the level seen from the camera, with a sky that is the color of the fog at the horizon
 // The view is drawn at the game resolution and scaled to the window later
 typedef struct Mode7
 {
     Shader shader;
     RenderTexture2D target;
 } Mode7;
+
+// Focal length in pixels, and the rows between the top of the view and the horizon
+// Everything that is drawn on the road must use the same values
+float Mode7Focal(void);
+float Mode7Horizon(void);
 
 // Load the shader and make the view, write the reason in message when it fails
 bool Mode7Init(Mode7 *mode7, char *message, size_t size);
