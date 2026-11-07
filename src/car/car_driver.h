@@ -5,7 +5,7 @@
 
 // A driver moves the car
 // The path driver follows the road curve
-// A driver for the player can use the same interface later, with input, grip and drift
+// The player driver uses the keyboard and the car physics
 typedef struct CarDriver CarDriver;
 struct CarDriver
 {

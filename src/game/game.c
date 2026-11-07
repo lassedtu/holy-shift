@@ -46,6 +46,7 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
     }
 
     bool loaded = LevelTexturesLoad(&game->textures, &game->level, message, size) &&
+                  SurfaceMapLoad(&game->surface, &game->level, message, size) &&
                   Mode7Init(&game->mode7, message, size) &&
                   TreesInit(&game->trees, &game->level, message, size) &&
                   CockpitLoad(&game->cockpit, message, size);
@@ -65,10 +66,11 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
             CarDriverUpdate(game->driver, &game->car, SIMULATION_STEP);
         }
     }
-    else
+    else if (game->mode == GAME_MODE_NORMAL)
     {
-        // Nobody drives the car in the other modes, it waits at the start
-        game->car.speed = 0.0f;
+        game->driver = &game->player_driver.base;
+        PlayerDriverInit(&game->player_driver, &game->surface, &game->track, &game->car);
+        StageStart(&game->stage, &game->track);
     }
 
     float pitch_min;
@@ -90,6 +92,7 @@ void GameShutdown(Game *game)
     CockpitUnload(&game->cockpit);
     TreesUnload(&game->trees);
     Mode7Unload(&game->mode7);
+    SurfaceMapUnload(&game->surface);
     LevelTexturesUnload(&game->textures);
     ForestUnload(&game->forest);
     TrackUnload(&game->track);
@@ -116,9 +119,22 @@ void GameUpdate(Game *game, float dt)
         return;
     }
 
+    if (game->mode == GAME_MODE_NORMAL)
+    {
+        if (IsKeyPressed(KEY_R))
+        {
+            PlayerDriverInit(&game->player_driver, &game->surface, &game->track, &game->car);
+            StageStart(&game->stage, &game->track);
+        }
+        game->player_driver.hold = game->stage.phase == STAGE_COUNTDOWN;
+    }
     if (game->driver != NULL)
     {
         CarDriverUpdate(game->driver, &game->car, dt);
+    }
+    if (game->mode == GAME_MODE_NORMAL)
+    {
+        StageUpdate(&game->stage, &game->car, dt);
     }
     HeadCameraUpdate(&game->head, mouse.x, mouse.y);
 }
@@ -145,7 +161,7 @@ void GameDraw(Game *game)
     {
         CockpitDraw(&game->cockpit, destination, game->head.yaw, game->head.pitch,
                     game->car.steer);
-        HudDraw(&game->car, destination);
+        HudDraw(&game->car, game->mode == GAME_MODE_NORMAL ? &game->stage : NULL, destination);
     }
     EndDrawing();
 }

@@ -124,6 +124,22 @@ float TrackHeading(const Track *track, float position)
     return atan2f(ahead.y - here.y, ahead.x - here.x);
 }
 
+float TrackNearest(const Track *track, Vector2 point, float around, float window)
+{
+    float best = around;
+    float best_distance = INFINITY;
+    for (float offset = -window; offset <= window; offset += CURVE_STEP)
+    {
+        float distance = Vector2DistanceSqr(TrackPoint(track, around + offset), point);
+        if (distance < best_distance)
+        {
+            best_distance = distance;
+            best = around + offset;
+        }
+    }
+    return TrackWrap(track, best);
+}
+
 float TrackTurnAhead(const Track *track, float position, float distance, float step)
 {
     float total = 0.0f;

@@ -21,6 +21,7 @@ typedef struct Level
     int map_width;
     int map_height;
     int road_width;
+    Color road_color; // color of the road in the logic map
     bool trees[TREE_SPECIES_COUNT]; // the species of trees around the road
 } Level;
 

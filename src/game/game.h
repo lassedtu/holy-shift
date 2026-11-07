@@ -9,11 +9,14 @@
 #include "car/car.h"
 #include "car/car_driver.h"
 #include "car/path_driver.h"
+#include "car/player_driver.h"
 #include "core/game_mode.h"
 #include "core/options.h"
+#include "game/stage.h"
 #include "level/forest.h"
 #include "level/level.h"
 #include "level/level_textures.h"
+#include "level/surface.h"
 #include "level/track.h"
 #include "render/cockpit.h"
 #include "render/mode7.h"
@@ -21,6 +24,7 @@
 
 // Everything of the running game
 // The car is moved by a driver, the other parts only read the state of the car
+// In the normal mode the player drives a stage, R starts the stage again
 // In the fly mode a free camera is used and the car is not shown
 typedef struct Game
 {
@@ -29,10 +33,13 @@ typedef struct Game
     Track track;
     Forest forest;
     LevelTextures textures;
+    SurfaceMap surface;
+    Stage stage;
 
     Car car;
     CarDriver *driver; // who moves the car, NULL when nobody moves it
     PathDriver path_driver;
+    PlayerDriver player_driver;
 
     HeadCamera head;
     FlyCamera fly;

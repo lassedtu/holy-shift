@@ -26,6 +26,9 @@
 #define SHADER_SHADOW_PATH "assets/shaders/shadow.fs"
 #define TREE_SHEET_DIR "assets/trees" // the pictures of the trees, see level/tree_species.h
 
+// Map
+#define MAP_PIXELS_PER_METER 8.0f // the road is 6 meters wide
+
 // Road view (Mode 7)
 #define CAMERA_HEIGHT 11.0f // map pixels above the road
 #define FOG_START 80.0f     // distance where the ground and the trees start to fade into the fog
@@ -34,6 +37,7 @@
 #define COLOR_SKY ((Color){90, 160, 230, 255})
 #define COLOR_FOG ((Color){75, 120, 135, 255})    // the color of the far ground, the far trees and the horizon
 #define COLOR_OUTSIDE ((Color){40, 150, 50, 255}) // color outside of the map
+#define COLOR_ROAD ((Color){130, 90, 50, 255})    // color of the road in the logic map when the level file has no color
 
 // Forest
 // The forest is placed once when a level loads, in rows along both sides of the road

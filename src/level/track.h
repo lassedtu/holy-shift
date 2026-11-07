@@ -28,6 +28,10 @@ float TrackWrap(const Track *track, float position);
 Vector2 TrackPoint(const Track *track, float position);
 float TrackHeading(const Track *track, float position);
 
+// Return the position on the track nearest to a point
+// Only the positions in a distance of window before and after the position around are examined
+float TrackNearest(const Track *track, Vector2 point, float around, float window);
+
 // Return the total turn (radians, always positive) of the track in a distance from a position
 float TrackTurnAhead(const Track *track, float position, float distance, float step);
 

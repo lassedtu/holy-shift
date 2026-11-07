@@ -159,6 +159,14 @@ bool LevelLoad(Level *level, const char *name, char *message, size_t size)
     // A level without the closed key has an open curve
     JsonReadBool(text, "closed", &loaded.closed);
 
+    loaded.road_color = COLOR_ROAD;
+    float road[3];
+    if (JsonReadNumberArray(text, "road", road, 3) == 3)
+    {
+        loaded.road_color = (Color){(unsigned char)road[0], (unsigned char)road[1],
+                                    (unsigned char)road[2], 255};
+    }
+
     ReadTrees(text, &loaded);
 
     if (!ReadPoints(text, &loaded))

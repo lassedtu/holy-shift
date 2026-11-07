@@ -12,6 +12,7 @@
 //   Export button           : save to levels/<name>/
 //   Open button             : load levels/<name>/level.json for editing
 //   Tree buttons            : choose the species of trees around the road
+//   Road slider             : drag to set the width of the road
 //
 // Run from the project root:
 //   make -C level-builder run
@@ -27,7 +28,11 @@
 
 #define MAP_W 2048
 #define MAP_H 2048
-#define ROAD_WIDTH 48 // road width in map pixels
+#define ROAD_WIDTH_DEFAULT 64 // road width of a new level, in map pixels
+#define ROAD_WIDTH_MIN 32
+#define ROAD_WIDTH_MAX 128
+#define ROAD_WIDTH_STEP 4
+#define MAP_PIXELS_PER_METER 8.0f
 #define MAX_POINTS 512
 #define MAX_UNDO 256
 #define CURVE_STEP 2.0f // maximum distance between curve samples
@@ -58,6 +63,7 @@ typedef struct
     int count;
     bool closed; // the last point connects to the first point
     bool trees[TREE_SPECIES_COUNT]; // the species of trees around the road
+    int road_width; // map pixels
 } Level;
 
 static Level undo_stack[MAX_UNDO];
@@ -141,12 +147,12 @@ static Vector2 *BuildCurve(const Level *level, int *out_count)
 }
 
 // Draw the road around the curve into the logic map
-static void RenderLogicMap(Image *image, const Vector2 *curve, int count)
+static void RenderLogicMap(Image *image, const Vector2 *curve, int count, int road_width)
 {
     ImageClearBackground(image, COLOR_OUTSIDE);
     for (int i = 0; i < count; i++)
     {
-        ImageDrawCircleV(image, curve[i], ROAD_WIDTH / 2, COLOR_ROAD);
+        ImageDrawCircleV(image, curve[i], road_width / 2, COLOR_ROAD);
     }
 }
 
@@ -184,7 +190,7 @@ static bool ExportLevel(const Level *level, const char *name, char *message,
     }
 
     Image image = GenImageColor(MAP_W, MAP_H, COLOR_OUTSIDE);
-    RenderLogicMap(&image, curve, curve_count);
+    RenderLogicMap(&image, curve, curve_count, level->road_width);
     free(curve);
     ImageFormat(&image, PIXELFORMAT_UNCOMPRESSED_R8G8B8);
     bool png_ok = ExportImage(image, png_path);
@@ -205,7 +211,7 @@ static bool ExportLevel(const Level *level, const char *name, char *message,
     fprintf(file, "  \"version\": 1,\n");
     fprintf(file, "  \"map_width\": %d,\n", MAP_W);
     fprintf(file, "  \"map_height\": %d,\n", MAP_H);
-    fprintf(file, "  \"road_width\": %d,\n", ROAD_WIDTH);
+    fprintf(file, "  \"road_width\": %d,\n", level->road_width);
     fprintf(file, "  \"logic_map\": \"%s\",\n", PNG_NAME);
     fprintf(file, "  \"colors\": {\n");
     fprintf(file, "    \"outside\": [%d, %d, %d],\n", COLOR_OUTSIDE.r,
@@ -329,15 +335,21 @@ static bool LoadLevel(const char *name, Level *level, char *message,
         UnloadFileText(text);
         return false;
     }
-    if ((int)map_w != MAP_W || (int)map_h != MAP_H ||
-        (int)road_width != ROAD_WIDTH)
+    if ((int)map_w != MAP_W || (int)map_h != MAP_H)
     {
-        snprintf(message, size, "%s has a different map or road size", path);
+        snprintf(message, size, "%s has a different map size", path);
+        UnloadFileText(text);
+        return false;
+    }
+    if ((int)road_width < ROAD_WIDTH_MIN || (int)road_width > ROAD_WIDTH_MAX)
+    {
+        snprintf(message, size, "%s has a road width outside %d to %d", path,
+                 ROAD_WIDTH_MIN, ROAD_WIDTH_MAX);
         UnloadFileText(text);
         return false;
     }
 
-    Level loaded = {.count = 0, .closed = false};
+    Level loaded = {.count = 0, .closed = false, .road_width = (int)road_width};
     const char *closed = FindKey(text, "closed");
     if (closed != NULL)
     {
@@ -445,7 +457,7 @@ int main(void)
     InitWindow(1280, 720, "Level editor");
     SetTargetFPS(60);
 
-    Level level = {.count = 0, .closed = false};
+    Level level = {.count = 0, .closed = false, .road_width = ROAD_WIDTH_DEFAULT};
     level.trees[TREE_SPECIES_DEFAULT] = true;
     Vector2 *curve = NULL;
     int curve_count = 0;
@@ -462,6 +474,9 @@ int main(void)
     {
         tree_buttons[i] = (Rectangle){440.0f + (float)i * 76.0f, 6, 72, TOOLBAR_H - 12};
     }
+    float road_x = 440.0f + TREE_SPECIES_COUNT * 76.0f + 8.0f;
+    Rectangle road_slider = {road_x + 115.0f, 6, 120, TOOLBAR_H - 12}; // the area that takes clicks
+    bool road_drag = false;
     char name[MAX_NAME + 1] = "level1";
     int name_length = (int)strlen(name);
     bool name_focus = false;
@@ -589,7 +604,12 @@ int main(void)
                 if (CheckCollisionPointRec(mouse, tree_buttons[i]))
                     clicked_tree = i;
             }
-            if (clicked_tree >= 0)
+            if (CheckCollisionPointRec(mouse, road_slider))
+            {
+                PushUndo(&level);
+                road_drag = true;
+            }
+            else if (clicked_tree >= 0)
             {
                 PushUndo(&level);
                 level.trees[clicked_tree] = !level.trees[clicked_tree];
@@ -643,6 +663,21 @@ int main(void)
                 }
             }
         }
+        if (road_drag && IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+        {
+            float t = Clamp((mouse.x - road_slider.x) / road_slider.width, 0.0f, 1.0f);
+            int steps = (int)roundf(t * (ROAD_WIDTH_MAX - ROAD_WIDTH_MIN) / ROAD_WIDTH_STEP);
+            int width = ROAD_WIDTH_MIN + steps * ROAD_WIDTH_STEP;
+            if (width != level.road_width)
+            {
+                level.road_width = width;
+                changed = true;
+            }
+        }
+        else
+        {
+            road_drag = false;
+        }
         if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) && !over_toolbar)
         {
             int index = FindPoint(&level, world, pick_radius);
@@ -658,7 +693,7 @@ int main(void)
         {
             free(curve);
             curve = BuildCurve(&level, &curve_count);
-            RenderLogicMap(&logic, curve, curve_count);
+            RenderLogicMap(&logic, curve, curve_count, level.road_width);
             UpdateTexture(texture, logic.data);
         }
         if (message_time > 0.0f)
@@ -729,10 +764,18 @@ int main(void)
             DrawText(label, (int)(tree_buttons[i].x + (tree_buttons[i].width - (float)label_w) / 2.0f),
                      (int)tree_buttons[i].y + 7, 16, WHITE);
         }
-        DrawText(TextFormat("Points: %d%s   Zoom: %d%%", level.count,
-                            level.closed ? " (closed)" : "",
-                            (int)roundf(zoom * 100.0f)),
-                 450 + TREE_SPECIES_COUNT * 76 + 10, 11, 18, LIGHTGRAY);
+        DrawText(TextFormat("Road %.1f m", (float)level.road_width / MAP_PIXELS_PER_METER),
+                 (int)road_x, 11, 18, WHITE);
+        float knob_t = (float)(level.road_width - ROAD_WIDTH_MIN) / (ROAD_WIDTH_MAX - ROAD_WIDTH_MIN);
+        float track_y = road_slider.y + road_slider.height / 2.0f;
+        bool over_road = road_drag || CheckCollisionPointRec(mouse, road_slider);
+        DrawRectangle((int)road_slider.x, (int)track_y - 2, (int)road_slider.width, 4,
+                      (Color){90, 90, 90, 255});
+        DrawCircleV((Vector2){road_slider.x + knob_t * road_slider.width, track_y}, 7.0f,
+                    over_road ? YELLOW : LIGHTGRAY);
+        const char *status = TextFormat("Points: %d%s   Zoom: %d%%", level.count,
+                                        level.closed ? " (closed)" : "", (int)roundf(zoom * 100.0f));
+        DrawText(status, win_w - MeasureText(status, 18) - 10, win_h - 26, 18, LIGHTGRAY);
         if (message_time > 0.0f)
         {
             int message_w = MeasureText(message, 18);
