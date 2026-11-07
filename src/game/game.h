@@ -26,6 +26,7 @@
 // Everything of the running game
 // The car is moved by a driver, the other parts only read the state of the car
 // In the normal mode the player drives a stage, R starts the stage again
+// When the car hits a tree, the view fades to black and the stage starts again
 // In the fly mode a free camera is used and the car is not shown
 typedef struct Game
 {
@@ -46,6 +47,8 @@ typedef struct Game
     FlyCamera fly;
     bool mouse_ready;  // false until the first frame, the first mouse movement is not valid
     bool mouse_ignore; // true when the mouse must not move the view, for a picture of --shot
+    float crash_time;  // seconds since the car hit a tree, negative when there is no crash
+    float fade_in;     // seconds left of the fade in after the stage starts again
 
     Mode7 mode7;
     Trees trees;

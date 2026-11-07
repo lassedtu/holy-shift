@@ -20,13 +20,14 @@
 #define COCKPIT_METRICS_PATH "assets/car_cockpit.json"
 #define COCKPIT_PANORAMA_PATH "assets/car_cockpit_panorama.png"
 #define COCKPIT_WHEEL_PATH "assets/car_cockpit_wheel.png"
-#define SHADER_MODE7_PATH "assets/shaders/mode7.fs"
-#define SHADER_COCKPIT_PATH "assets/shaders/cockpit.fs"
-#define SHADER_TREES_PATH "assets/shaders/trees.fs"
-#define SHADER_SHADOW_PATH "assets/shaders/shadow.fs"
+#define SHADER_MODE7_PATH "src/render/shaders/mode7.fs"
+#define SHADER_COCKPIT_PATH "src/render/shaders/cockpit.fs"
+#define SHADER_TREES_PATH "src/render/shaders/trees.fs"
+#define SHADER_SHADOW_PATH "src/render/shaders/shadow.fs"
 #define TREE_SHEET_DIR "assets/trees" // the pictures of the trees, see level/tree_species.h
 #define SOUND_SCREECH_PATH "assets/sounds/tire_screech.wav" // made by scripts/screech_loop.py
-#define SOUND_GEAR_PATH "assets/sounds/gear_change.wav"     // made by scripts/gear_sound.py
+#define SOUND_GEAR_PATH "assets/sounds/gear_change.wav"     // made by scripts/sound_clips.py
+#define SOUND_CRASH_PATH "assets/sounds/crash.wav"          // made by scripts/sound_clips.py
 
 // Map
 #define MAP_PIXELS_PER_METER 8.0f // the road is 6 meters wide
@@ -54,6 +55,11 @@
 #define TREE_SHADOW_ALPHA 0.3f   // opacity of the dots of the shadow
 #define TREE_MAX_LOOK_UP_DEG 10.0f // no picture looks up more than this, the trees are never very near
 #define TREE_NEAR 6.0f           // trees closer than this to the camera are not drawn
+#define TREE_TRUNK_RADIUS 3.5f   // radius of a trunk for crashes, in map pixels at a scale of 1
+#define CAR_LENGTH 28.0f         // size of the box of the car for crashes, in map pixels
+#define CAR_WIDTH 12.0f
+#define CAR_EYE_BACK 1.0f        // the eye of the driver is this far behind the centre of the car
+#define CAR_EYE_LEFT 3.0f        // the eye of the driver is this far left of the centre of the car
 #define FOREST_SEED 1234u
 #define FOREST_ROAD_MARGIN 14.0f // free space between the road edge and the nearest trunk
 #define FOREST_SPACING 26.0f     // size of the squares that get one tree each

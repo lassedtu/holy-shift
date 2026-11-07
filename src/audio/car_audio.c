@@ -92,6 +92,7 @@ bool CarAudioInit(CarAudio *audio, const Car *car)
         return false;
     }
     SetAudioStreamCallback(audio->stream, Render);
+    audio->crash = LoadSound(SOUND_CRASH_PATH);
     audio->gear = car->gear;
     audio->ready = true;
     return true;
@@ -103,6 +104,10 @@ void CarAudioUnload(CarAudio *audio)
     {
         StopAudioStream(audio->stream);
         UnloadAudioStream(audio->stream);
+    }
+    if (IsSoundValid(audio->crash))
+    {
+        UnloadSound(audio->crash);
     }
     if (screech_samples != NULL)
     {
@@ -129,6 +134,19 @@ void CarAudioUpdate(CarAudio *audio, const Car *car, Surface surface)
         atomic_fetch_add(&clunk_requests, 1);
     }
     audio->gear = car->gear;
+}
+
+void CarAudioCrash(CarAudio *audio)
+{
+    if (!audio->ready)
+    {
+        return;
+    }
+    CarAudioSetPlaying(audio, false);
+    if (IsSoundValid(audio->crash))
+    {
+        PlaySound(audio->crash);
+    }
 }
 
 void CarAudioSetPlaying(CarAudio *audio, bool playing)

@@ -10,11 +10,24 @@
 #include "ui/hud.h"
 
 #define SIMULATION_STEP (1.0f / 60.0f)
+#define CRASH_FADE_SECONDS 0.35f   // the view fades to black after a crash
+#define CRASH_BLACK_SECONDS 0.6f   // the view stays black before the stage starts again
+#define RESTART_FADE_SECONDS 0.5f  // the view fades in after the stage starts again
+
+static void RestartStage(Game *game, bool fade)
+{
+    PlayerDriverInit(&game->player_driver, &game->surface, &game->track, &game->car);
+    StageStart(&game->stage, &game->track);
+    game->crash_time = -1.0f;
+    game->fade_in = fade ? RESTART_FADE_SECONDS : 0.0f;
+    CarAudioSetPlaying(&game->audio, true);
+}
 
 bool GameInit(Game *game, const Options *options, char *message, size_t size)
 {
     memset(game, 0, sizeof(*game));
     game->mode = options->mode;
+    game->crash_time = -1.0f;
     game->mouse_ignore = options->screenshot != NULL;
 
     char name[LEVEL_MAX_NAME];
@@ -123,22 +136,42 @@ void GameUpdate(Game *game, float dt)
         return;
     }
 
-    if (game->mode == GAME_MODE_NORMAL)
+    game->fade_in = fmaxf(0.0f, game->fade_in - dt);
+    bool crashed = game->crash_time >= 0.0f;
+    if (crashed)
+    {
+        game->crash_time += dt;
+        if (game->crash_time >= CRASH_FADE_SECONDS + CRASH_BLACK_SECONDS)
+        {
+            RestartStage(game, true);
+        }
+    }
+    else if (game->mode == GAME_MODE_NORMAL)
     {
         if (IsKeyPressed(KEY_R))
         {
-            PlayerDriverInit(&game->player_driver, &game->surface, &game->track, &game->car);
-            StageStart(&game->stage, &game->track);
+            RestartStage(game, false);
         }
         game->player_driver.hold = game->stage.phase == STAGE_COUNTDOWN;
     }
-    if (game->driver != NULL)
+    if (game->driver != NULL && !crashed)
     {
         CarDriverUpdate(game->driver, &game->car, dt);
     }
-    if (game->mode == GAME_MODE_NORMAL)
+    if (game->mode == GAME_MODE_NORMAL && !crashed)
     {
         StageUpdate(&game->stage, &game->car, dt);
+        Vector2 forward = {cosf(game->car.heading), sinf(game->car.heading)};
+        Vector2 right = {-forward.y, forward.x};
+        Vector2 center = Vector2Add(game->car.position, Vector2Add(Vector2Scale(forward, CAR_EYE_BACK),
+                                                                   Vector2Scale(right, CAR_EYE_LEFT)));
+        if (ForestHit(&game->forest, center, game->car.heading, CAR_LENGTH, CAR_WIDTH))
+        {
+            game->crash_time = 0.0f;
+            game->car.speed = 0.0f;
+            game->car.slip = 0.0f;
+            CarAudioCrash(&game->audio);
+        }
     }
     CarAudioUpdate(&game->audio, &game->car, SurfaceAt(&game->surface, game->car.position));
     HeadCameraUpdate(&game->head, mouse.x, mouse.y);
@@ -167,6 +200,15 @@ void GameDraw(Game *game)
         CockpitDraw(&game->cockpit, destination, game->head.yaw, game->head.pitch,
                     game->car.steer);
         HudDraw(&game->car, game->mode == GAME_MODE_NORMAL ? &game->stage : NULL, destination);
+    }
+    float black = game->fade_in / RESTART_FADE_SECONDS;
+    if (game->crash_time >= 0.0f)
+    {
+        black = fminf(game->crash_time / CRASH_FADE_SECONDS, 1.0f);
+    }
+    if (black > 0.0f)
+    {
+        DrawRectangleRec(destination, Fade(BLACK, black));
     }
     EndDrawing();
 }

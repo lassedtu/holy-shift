@@ -10,7 +10,7 @@
 
 // A driver that uses the keyboard
 // W and S are the throttle and the brake, A and D steer, space is the handbrake
-// E and Q or the mouse wheel shift up and down
+// The right mouse button or E shifts up, the left mouse button or Q shifts down
 // The clutch is automatic: it is down for a short time at each shift
 // After a stall, a shift down starts the engine again
 typedef struct PlayerDriver

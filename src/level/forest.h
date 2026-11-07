@@ -34,4 +34,9 @@ void ForestUnload(Forest *forest);
 // Return the trees of a cell, or NULL and a count of 0 when the cell is outside of the grid
 const Tree *ForestCell(const Forest *forest, int column, int row, int *count);
 
+// Return true when a box touches the trunk of a tree
+// The box has its centre at center, its length along heading (radians) and its width across it
+// The radius of a trunk is TREE_TRUNK_RADIUS times the scale of the tree
+bool ForestHit(const Forest *forest, Vector2 center, float heading, float length, float width);
+
 #endif

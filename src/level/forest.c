@@ -293,3 +293,39 @@ const Tree *ForestCell(const Forest *forest, int column, int row, int *count)
     *count = forest->cell_start[cell + 1] - forest->cell_start[cell];
     return forest->trees + forest->cell_start[cell];
 }
+
+bool ForestHit(const Forest *forest, Vector2 center, float heading, float length, float width)
+{
+    Vector2 forward = {cosf(heading), sinf(heading)};
+    float half_length = length / 2.0f;
+    float half_width = width / 2.0f;
+    float reach = sqrtf(half_length * half_length + half_width * half_width) + TREE_TRUNK_RADIUS * TREE_SCALE_MAX;
+    int first_column = (int)floorf((center.x - reach - forest->origin.x) / FOREST_CELL_SIZE);
+    int last_column = (int)floorf((center.x + reach - forest->origin.x) / FOREST_CELL_SIZE);
+    int first_row = (int)floorf((center.y - reach - forest->origin.y) / FOREST_CELL_SIZE);
+    int last_row = (int)floorf((center.y + reach - forest->origin.y) / FOREST_CELL_SIZE);
+    for (int row = first_row; row <= last_row; row++)
+    {
+        for (int column = first_column; column <= last_column; column++)
+        {
+            int count;
+            const Tree *cell = ForestCell(forest, column, row, &count);
+            for (int i = 0; i < count; i++)
+            {
+                // The trunk in the frame of the box, then the nearest point of the box to the trunk
+                float dx = cell[i].position.x - center.x;
+                float dy = cell[i].position.y - center.y;
+                float along = dx * forward.x + dy * forward.y;
+                float across = dx * -forward.y + dy * forward.x;
+                float out_along = fmaxf(fabsf(along) - half_length, 0.0f);
+                float out_across = fmaxf(fabsf(across) - half_width, 0.0f);
+                float radius = TREE_TRUNK_RADIUS * cell[i].scale;
+                if (out_along * out_along + out_across * out_across < radius * radius)
+                {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}

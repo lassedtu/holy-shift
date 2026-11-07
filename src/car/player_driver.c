@@ -31,12 +31,11 @@ static void PlayerDriverUpdate(CarDriver *base, Car *car, float dt)
 {
     PlayerDriver *driver = (PlayerDriver *)base;
 
-    float wheel = GetMouseWheelMove();
-    if (IsKeyPressed(KEY_E) || wheel > 0.0f)
+    if (IsKeyPressed(KEY_E) || IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
     {
         Shift(driver, car, 1);
     }
-    if (IsKeyPressed(KEY_Q) || wheel < 0.0f)
+    if (IsKeyPressed(KEY_Q) || IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
     {
         Shift(driver, car, -1);
     }
