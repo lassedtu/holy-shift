@@ -48,6 +48,23 @@ void UiEnd(Ui *ui);
 void UiDim(const Ui *ui, float amount);
 
 void UiPanel(const Ui *ui, Rectangle rect);
+
+// A sunken frame, for example around a picture
+void UiInlay(const Ui *ui, Rectangle rect);
+
+// A brown panel, for example behind a paper panel
+void UiPanelDark(const Ui *ui, Rectangle rect);
+
+void UiFill(const Ui *ui, Rectangle rect, Color color);
+
+// Draw a part of a texture into a rectangle
+void UiTexture(const Ui *ui, Texture2D texture, Rectangle source, Rectangle rect, Color tint);
+
+// Return the width of a text in game pixels
+float UiTextWidth(const Ui *ui, const char *text, int size);
+
+// Return the height of a text in game pixels, as it is drawn
+float UiTextHeight(const Ui *ui, int size);
 void UiText(const Ui *ui, const char *text, float x, float y, int size, Color color);
 void UiTextCentered(const Ui *ui, const char *text, float x, float y, int size, Color color);
 

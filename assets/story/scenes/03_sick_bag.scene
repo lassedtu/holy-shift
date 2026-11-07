@@ -1,0 +1,20 @@
+# 03 Sick bag: after the forest stage
+# Goal: a comedy beat after the first map events, and the first money for the bingo hall.
+# Mood: silly, then a small moment of pride.
+
+# picture: A gravel road in a forest, a small car parked at the side.
+# search: forest gravel road, car parked in forest, dirt road trees
+image 03_forest_finish.png
+Rajka: Not on the seats.
+Luka (sick): I know.
+Rajka: They're the original seats.
+
+# picture: A hand-drawn money thermometer poster.
+# search: fundraising thermometer, donation goal poster
+image 03_thermometer.png
+: Eight thousand! Rajka, eight thousand already!
+Rajka: It's not enough.
+Luka: Kids at school saw us on the local news.
+Rajka: And?
+Luka: They think you're crazy. In a good way. Mostly.
+fade

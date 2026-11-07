@@ -20,6 +20,7 @@ typedef struct Settings
     bool invert_look;        // true when the mouse moves the view up and down the other way
     float volume;            // from 0 to 1
     bool fullscreen;
+    int story_step; // the next step of the story mode
     BestTime best[SETTINGS_MAX_BEST];
     int best_count;
 } Settings;

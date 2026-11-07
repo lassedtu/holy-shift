@@ -1,0 +1,41 @@
+# 06 The lake: before the final
+# Goal: the full story of 1978 (the crash and the fight), and the start of the final on the same road.
+# Rajka must win, and she must decide if she trusts the call this time.
+# Mood: tense. The flashback pictures use the old, faded colors of 02.
+
+# picture: A lake at dusk, with a road along the shore.
+# search: lake dusk, lakeside road, lake sunset
+image 06_lake_today.png
+Luka: Is this the road?
+Rajka: Yes.
+Luka: Are you okay?
+Rajka: Map.
+
+fade
+# picture: FLASHBACK (--sepia). A big splash in a lake, or dark water with rings.
+# search: water splash, lake splash, ripples dark water
+image 06_past_crash.png
+Rajka: She called it flat. Right, flat, over the crest. I didn't believe her. I braked.
+# picture: FLASHBACK (--sepia). A lake shore with mud and reeds under a grey sky.
+# search: lake shore reeds, muddy shore, grey lake
+image 06_past_fight.png
+Rajka (angry): She said I didn't trust her. I said she called it wrong.
+Luka: Did she?
+Rajka (sad): I don't know. I never drove that corner again.
+
+fade
+# picture: A gravel road with a start line, a flag or a timing post, a car waiting.
+# search: rally start, starting line road, race start flag
+image 06_start_line.png
+Jelka: You remember this one.
+Rajka: I remember.
+Jelka: It was flat, Rajka.
+Rajka: We'll see.
+
+# picture: A car dashboard from the passenger seat.
+# search: car interior passenger view, dashboard road ahead
+image 06_luka_ready.png
+Luka (brave): I'm going to look this time. For that corner.
+Rajka: ...Okay.
+Luka (scared): Just that one. Then I'm closing them again.
+fade

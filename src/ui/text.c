@@ -45,8 +45,8 @@ static Font FontAt(int size)
     return font;
 }
 
-// Return the nearest size where each pixel of the font is a whole number of screen pixels
-static int SharpSize(int size)
+// The nearest size where each pixel of the font is a whole number of screen pixels
+int TextSharpSize(int size)
 {
     int steps = (size + FONT_GRID / 2) / FONT_GRID;
     return (steps < 1 ? 1 : steps) * FONT_GRID;
@@ -67,13 +67,13 @@ void TextUnloadAll(void)
 // The letters of the font have their own space, so no space is added between them
 void TextDraw(const char *text, float x, float y, int size, Color color)
 {
-    size = SharpSize(size);
+    size = TextSharpSize(size);
     DrawTextEx(FontAt(size), text, (Vector2){(float)(int)x, (float)(int)y}, (float)size, 0.0f, color);
 }
 
 int TextWidth(const char *text, int size)
 {
-    size = SharpSize(size);
+    size = TextSharpSize(size);
     return (int)MeasureTextEx(FontAt(size), text, (float)size, 0.0f).x;
 }
 

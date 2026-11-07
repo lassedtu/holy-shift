@@ -151,6 +151,36 @@ void UiPanel(const Ui *ui, Rectangle rect)
     DrawNineSlice(ui, ui->panel, rect);
 }
 
+void UiInlay(const Ui *ui, Rectangle rect)
+{
+    DrawNineSlice(ui, ui->inlay, rect);
+}
+
+void UiPanelDark(const Ui *ui, Rectangle rect)
+{
+    DrawNineSlice(ui, ui->button, rect);
+}
+
+void UiFill(const Ui *ui, Rectangle rect, Color color)
+{
+    DrawRectangleRec(ToWindow(ui, rect), color);
+}
+
+void UiTexture(const Ui *ui, Texture2D texture, Rectangle source, Rectangle rect, Color tint)
+{
+    DrawTexturePro(texture, source, ToWindow(ui, rect), (Vector2){0, 0}, 0.0f, tint);
+}
+
+float UiTextHeight(const Ui *ui, int size)
+{
+    return (float)TextSharpSize((int)((float)size * ui->scale)) / ui->scale;
+}
+
+float UiTextWidth(const Ui *ui, const char *text, int size)
+{
+    return (float)TextWidth(text, (int)((float)size * ui->scale)) / ui->scale;
+}
+
 void UiText(const Ui *ui, const char *text, float x, float y, int size, Color color)
 {
     TextDraw(text, ui->area.x + x * ui->scale, ui->area.y + y * ui->scale, (int)((float)size * ui->scale), color);
@@ -244,7 +274,7 @@ bool UiToggle(Ui *ui, Rectangle rect, const char *label, bool *value)
     Color ink = focused ? COLOR_LABEL : COLOR_LABEL_LIGHT;
     UiText(ui, label, rect.x + 10.0f, TextTop(rect), TEXT_SIZE, ink);
     const char *state = *value ? "ON" : "OFF";
-    float width = (float)TextWidth(state, (int)(TEXT_SIZE * ui->scale)) / ui->scale;
+    float width = UiTextWidth(ui, state, TEXT_SIZE);
     UiText(ui, state, rect.x + rect.width - 10.0f - width, TextTop(rect), TEXT_SIZE, ink);
     return changed;
 }

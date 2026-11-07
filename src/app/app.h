@@ -7,6 +7,8 @@
 #include "core/options.h"
 #include "core/settings.h"
 #include "game/game.h"
+#include "story/scene_player.h"
+#include "story/story.h"
 #include "ui/ui.h"
 
 #define APP_MAX_LEVELS 32
@@ -19,7 +21,8 @@ typedef enum Screen
     SCREEN_PLAYING,
     SCREEN_PAUSED,
     SCREEN_CRASHED,
-    SCREEN_FINISHED
+    SCREEN_FINISHED,
+    SCREEN_SCENE // a scene of the story mode
 } Screen;
 
 // The whole program: the menus and the game behind them
@@ -40,6 +43,12 @@ typedef struct App
     float menu_time;
     bool new_best;
     bool quit;
+
+    Story story;
+    bool has_story;  // false when the story file cannot be read, then the story mode starts the first level
+    bool in_story;   // true while the player plays the story mode
+    ScenePlayer scene;
+    bool scene_playing;
 
     char levels[APP_MAX_LEVELS][LEVEL_MAX_NAME];
     int level_count;

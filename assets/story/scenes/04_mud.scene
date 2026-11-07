@@ -1,0 +1,23 @@
+# 04 Mud: before the mud stage
+# Goal: Zlo shows its face. The Zlo team laughs at the Jugo. Jelka does not laugh, the first sign that
+# she is not happy with Zlo.
+# Mood: rain, mean jokes, Rajka's anger, one quiet look from Jelka.
+
+# picture: A muddy field or parking area in the rain.
+# search: mud field rain, muddy road rain, puddles
+image 04_rain.png
+Luka: There's mud inside the car.
+Rajka: There's always mud inside the car.
+
+# picture: People in matching dark jackets seen from behind, or umbrellas in the rain.
+# search: people umbrellas rain, crowd jackets back view
+image 04_zlo_team.png
+Zlo (smug): Did you drive that here or did someone tow it?
+Zlo (smug): My grandfather had one of those. He hated it.
+Rajka (angry): Your grandfather couldn't drive either.
+
+# picture: Rain on a car window, blurred lights behind it.
+# search: rain window, raindrops glass, rainy car window
+image 04_jelka_looks.png
+wait 4
+fade

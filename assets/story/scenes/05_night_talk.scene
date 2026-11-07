@@ -1,0 +1,25 @@
+# 05 Night talk: before the night stage
+# Goal: the quiet, warm scene. Luka admits that he is scared. Rajka admits that she is scared too.
+# This is where Luka starts to get braver.
+# Mood: dark, calm, close. No jokes until the very end.
+
+# picture: A dark forest road at night, or stars over trees.
+# search: night forest road, starry sky trees, car headlights night
+image 05_hood.png
+Luka: Can I tell you something?
+Rajka: Mm.
+Luka: The carsick thing is real. But also I'm just... scared. The whole time.
+Rajka: Okay.
+Luka: Okay?
+Rajka: I'm scared too. You think I like trees?
+Luka: You don't look scared.
+Rajka: I've had more practice.
+
+# picture: An old faded photograph lying on a dashboard or a table.
+# search: old photo on table, vintage photograph, faded photo
+image 05_photo.png
+Luka: You unfolded it.
+Rajka: It was getting a crease.
+Luka: Tomorrow I'll try to look. Once, at least.
+Rajka: Don't promise. Just do it if you can.
+fade

@@ -67,7 +67,82 @@ static void OpenMenu(App *app)
     CarAudioSetPlaying(&app->game.audio, false);
     app->game.fade_in = 0.0f; // the game is not updated behind the menu, so the fade would not end
     app->menu_time = 0.0f;
+    app->in_story = false;
     SetScreen(app, SCREEN_MENU);
+}
+
+static bool Back(const App *app)
+{
+    return app->ui.back && !app->screen_changed;
+}
+
+static void StopScene(App *app)
+{
+    if (app->scene_playing)
+    {
+        ScenePlayerStop(&app->scene);
+        app->scene_playing = false;
+    }
+}
+
+// Go to the step of the story mode in the settings, the menu opens after the last step
+static void ContinueStory(App *app)
+{
+    StopScene(app);
+    if (!app->has_story)
+    {
+        app->in_story = true;
+        StartStage(app, app->levels[0]);
+        return;
+    }
+    while (app->settings.story_step < app->story.count)
+    {
+        const StoryStep *step = &app->story.steps[app->settings.story_step];
+        if (step->type == STORY_SCENE)
+        {
+            app->scene_playing = ScenePlayerStart(&app->scene, step->name, app->message, sizeof(app->message));
+            if (app->scene_playing)
+            {
+                app->in_story = true;
+                SetScreen(app, SCREEN_SCENE);
+                return;
+            }
+            fprintf(stderr, "%s\n", app->message);
+        }
+        else
+        {
+            app->in_story = true;
+            StartStage(app, step->name);
+            if (app->screen == SCREEN_PLAYING)
+            {
+                return;
+            }
+            fprintf(stderr, "%s\n", app->message);
+        }
+        app->settings.story_step++; // a step that cannot start is left out
+    }
+    app->settings.story_step = 0; // the story is complete, the next time it starts from the beginning
+    SettingsSave(&app->settings);
+    OpenMenu(app);
+}
+
+// Go to the next step of the story mode
+static void NextStoryStep(App *app)
+{
+    app->settings.story_step++;
+    SettingsSave(&app->settings);
+    ContinueStory(app);
+}
+
+static void SceneScreen(App *app)
+{
+    bool advance = !app->screen_changed && (app->ui.select || IsMouseButtonPressed(MOUSE_BUTTON_LEFT));
+    ScenePlayerUpdate(&app->scene, GetFrameTime(), advance, Back(app));
+    ScenePlayerDraw(&app->scene, &app->ui);
+    if (ScenePlayerDone(&app->scene))
+    {
+        NextStoryStep(app);
+    }
 }
 
 // Open the screen of the --screen option, for development
@@ -75,6 +150,15 @@ static void OpenStartScreen(App *app, const char *name)
 {
     const char *names[] = {"stages", "settings", "paused", "crashed", "finished"};
     Screen screens[] = {SCREEN_STAGES, SCREEN_SETTINGS, SCREEN_PAUSED, SCREEN_CRASHED, SCREEN_FINISHED};
+    if (name != NULL && strncmp(name, "scene:", 6) == 0)
+    {
+        app->scene_playing = ScenePlayerStart(&app->scene, name + 6, app->message, sizeof(app->message));
+        if (app->scene_playing)
+        {
+            SetScreen(app, SCREEN_SCENE);
+        }
+        return;
+    }
     for (int i = 0; name != NULL && i < 5; i++)
     {
         if (strcmp(name, names[i]) == 0)
@@ -100,6 +184,12 @@ bool AppInit(App *app, const Options *options, char *message, size_t size)
         return false;
     }
     app->level_count = LevelFindAll(app->levels, APP_MAX_LEVELS);
+    char story_message[256];
+    app->has_story = StoryLoad(&app->story, story_message, sizeof(story_message));
+    if (!app->has_story)
+    {
+        fprintf(stderr, "%s\n", story_message);
+    }
 
     bool direct = options->level != NULL || options->mode != GAME_MODE_NORMAL;
     if (direct)
@@ -134,6 +224,7 @@ bool AppInit(App *app, const Options *options, char *message, size_t size)
 
 void AppShutdown(App *app)
 {
+    StopScene(app);
     if (app->game_ready)
     {
         GameShutdown(&app->game);
@@ -207,10 +298,6 @@ static void ColumnPanel(App *app, float top, int buttons, float width, float hea
                                   width + 2.0f * PANEL_MARGIN, height});
 }
 
-static bool Back(const App *app)
-{
-    return app->ui.back && !app->screen_changed;
-}
 
 static void DrawTitle(App *app, const char *text, float y, int size, Color color)
 {
@@ -227,7 +314,7 @@ static void MenuScreen(App *app)
     ColumnPanel(app, top, 4, BUTTON_WIDTH, 0.0f);
     if (UiButton(ui, ButtonAt(top, 0, BUTTON_WIDTH), "STORY"))
     {
-        StartStage(app, app->levels[0]);
+        ContinueStory(app);
     }
     if (UiButton(ui, ButtonAt(top, 1, BUTTON_WIDTH), "FREE PLAY"))
     {
@@ -359,21 +446,25 @@ static void FinishedScreen(App *app)
 {
     Ui *ui = &app->ui;
     UiDim(ui, 0.4f);
-    float top = 170.0f;
+    float top = app->in_story ? 150.0f : 170.0f;
     float heading = 76.0f;
-    ColumnPanel(app, top, 2, BUTTON_WIDTH, heading);
+    ColumnPanel(app, top, app->in_story ? 3 : 2, BUTTON_WIDTH, heading);
     float y = top - heading - 2.0f;
     UiTextCentered(ui, "FINISH", VIEW_WIDTH / 2.0f, y, HEADING_SIZE, COLOR_INK);
     UiTextCentered(ui, HudFormatTime(app->game.stage.time), VIEW_WIDTH / 2.0f, y + 28.0f, HEADING_SIZE, COLOR_INK);
     float best = SettingsBestTime(&app->settings, app->game.level.name);
     const char *line = app->new_best ? "NEW BEST TIME!" : (best < 0.0f ? "" : TextFormat("BEST  %s", HudFormatTime(best)));
     UiTextCentered(ui, line, VIEW_WIDTH / 2.0f, y + 56.0f, LABEL_SIZE, app->new_best ? COLOR_WARNING : COLOR_INK);
-    if (UiButton(ui, ButtonAt(top, 0, BUTTON_WIDTH), "DRIVE AGAIN") || IsKeyPressed(KEY_R))
+    if (app->in_story && UiButton(ui, ButtonAt(top, 0, BUTTON_WIDTH), "CONTINUE"))
+    {
+        NextStoryStep(app);
+    }
+    else if (UiButton(ui, ButtonAt(top, app->in_story ? 1 : 0, BUTTON_WIDTH), "DRIVE AGAIN") || IsKeyPressed(KEY_R))
     {
         GameRestart(&app->game);
         Resume(app);
     }
-    else if (UiButton(ui, ButtonAt(top, 1, BUTTON_WIDTH), "MENU") || Back(app))
+    else if (UiButton(ui, ButtonAt(top, app->in_story ? 2 : 1, BUTTON_WIDTH), "MENU") || Back(app))
     {
         OpenMenu(app);
     }
@@ -431,6 +522,9 @@ void AppFrame(App *app)
         break;
     case SCREEN_FINISHED:
         FinishedScreen(app);
+        break;
+    case SCREEN_SCENE:
+        SceneScreen(app);
         break;
     case SCREEN_PLAYING:
         break;

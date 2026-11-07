@@ -28,6 +28,11 @@
 #define SOUND_SCREECH_PATH "assets/sounds/tire_screech.wav" // made by scripts/screech_loop.py
 #define SOUND_GEAR_PATH "assets/sounds/gear_change.wav"     // made by scripts/sound_clips.py
 #define UI_DIR "assets/ui"                                  // Kenney Pixel UI Pack (CC0), see assets/ui/Kenney-License.txt
+#define STORY_ORDER_PATH "assets/story/story.order" // the order of the scenes and the stages of the story mode
+#define STORY_SCENES_DIR "assets/story/scenes"      // the .scene files
+#define STORY_IMAGES_DIR "assets/story/images"      // the pictures of the scenes, made by scripts/pixelate.py
+#define STORY_PORTRAITS_DIR "assets/story/portraits" // the pictures of the speakers, 40 x 40 pixels
+#define STORY_PICTURE_SCALE 2 // game pixels for each pixel of a story picture, a picture of 320 x 180 fills the view
 #define SAVE_PATH "save.txt"                                // the settings and the best times
 #define FONT_PATH "assets/fonts/Jersey15-Regular.ttf"       // Jersey 15, SIL Open Font License, see assets/fonts/
 #define FONT_GRID 27 // the font is sharp at multiples of this size, one pixel of the font is 1/27 of the size

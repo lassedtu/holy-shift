@@ -1,0 +1,61 @@
+# 00 Intro: before the village road (tutorial)
+# Goal: the village, the bingo hall, the threat of Zlo, and why Rajka gets back in a car.
+# Mood: warm and slow at the start, then the letter, then Rajka's quiet stubbornness.
+#
+# "# picture:" tells what the picture shows, "# search:" gives words to search for a photo (for example on Pexels).
+# scripts/story_placeholders.py makes a placeholder from them.
+
+# picture: A small village in green hills, seen from above, with a road winding through it.
+# search: village aerial, rural village hills, countryside houses
+image 00_village.png
+pan down 8
+wait 4
+
+# picture: A table with bingo or lotto cards and counters, tea cups, an old tablecloth.
+# search: bingo cards, lotto game, board game table vintage
+image 00_bingo_night.png bottom
+: Thirty-three. Three, three.
+Luka: How many cards do you have?
+Rajka: Six.
+Luka: Is that allowed?
+Rajka: Mara has nine. Nobody says anything to Mara.
+
+# picture: A letter or an official document lying on a table.
+# search: letter on table, official document, envelope paper
+image 00_zlo_letter.png
+Luka: What is it?
+Rajka: They're buying the hall.
+Luka: Who is?
+Rajka: Some company. Computers.
+Rajka (angry): "Demolition in the spring." In the spring. Like it's good news.
+
+# picture: Rows of chairs in a plain hall, or people at a meeting seen from behind.
+# search: community hall chairs, town meeting, empty hall
+image 00_village_meeting.png top
+: Fifty thousand dollars by the end of the season. Or we'll have to sign it.
+: Does anyone here have fifty thousand dollars?
+
+# picture: A rally poster on a wall, with a rally car on it.
+# search: rally poster, motorsport poster
+image 00_poster.png
+pan down 6
+Luka: Grandma, why are you looking at that poster?
+Rajka: I'm not.
+
+# picture: An old garage or shed with tools on the walls, maybe a car under a cover.
+# search: old garage interior, car cover, workshop tools
+image 00_garage.png bottom
+Luka: Is that Grandpa's car?
+Rajka: It's my car. Grandpa was allowed to drive it on Sundays.
+Luka: Does it still work?
+Rajka: It worked in 2009.
+
+# picture: The front door of a small house in the early morning.
+# search: front door house, doorstep morning, house entrance
+image 00_luka_door.png
+Rajka: Shoes on. We're going for a drive.
+Luka (sick): It's seven in the morning.
+Rajka: You're holding the map.
+Luka: I can't read maps.
+Rajka: You don't have to read it. Just hold it up.
+fade

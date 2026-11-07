@@ -1,0 +1,35 @@
+# 01 Club rally: before the first real stage
+# Goal: Rajka back in the rally world, and the first meeting with Jelka, who now drives for Zlo.
+# Mood: comedy at the registration, then cold silence when Jelka appears.
+
+# picture: A muddy field with cars, tents and people, like a rally or a car event.
+# search: rally service park, car event field, motorsport paddock
+image 01_service_park.png top
+Luka (scared): They all have proper helmets.
+Rajka: We have helmets.
+Luka: Ours are for bikes.
+Rajka: They're still helmets.
+
+# picture: A table with papers, forms and a pen, outdoors or in a tent.
+# search: registration table, event check-in, forms clipboard
+image 01_registration.png
+: This licence is from 1978.
+Rajka: Yes.
+: I... have to ask someone about this.
+Rajka: Go ask. I'll wait.
+
+# picture: A dark sports or rally car, close up, without readable logos.
+# search: black rally car, race car close up, sports car dark
+image 01_jelka_arrives.png top
+Jelka (cold): Rajka.
+Rajka: Jelka.
+Luka: Do you know her?
+Rajka: Get in the car.
+
+# picture: A paper road map, held up or lying on a car dashboard.
+# search: road map car, paper map dashboard, map in hands
+image 01_luka_map.png
+Rajka: Higher.
+Luka (scared): I'm not opening my eyes.
+Rajka: I didn't say open your eyes. I said higher.
+fade

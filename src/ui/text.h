@@ -11,6 +11,9 @@
 // Release all the loaded sizes of the font
 void TextUnloadAll(void);
 
+// Return the size that a text of a size is drawn with
+int TextSharpSize(int size);
+
 void TextDraw(const char *text, float x, float y, int size, Color color);
 int TextWidth(const char *text, int size);
 

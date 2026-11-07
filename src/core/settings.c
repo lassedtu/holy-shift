@@ -50,6 +50,10 @@ void SettingsLoad(Settings *settings)
             {
                 settings->fullscreen = value != 0.0f;
             }
+            else if (strcmp(key, "story_step") == 0)
+            {
+                settings->story_step = (int)value;
+            }
         }
         line = next;
     }
@@ -59,8 +63,9 @@ void SettingsLoad(Settings *settings)
 bool SettingsSave(const Settings *settings)
 {
     char text[8192];
-    int length = snprintf(text, sizeof(text), "mouse_sensitivity %.2f\ninvert_look %d\nvolume %.2f\nfullscreen %d\n",
-                          settings->mouse_sensitivity, settings->invert_look, settings->volume, settings->fullscreen);
+    int length = snprintf(text, sizeof(text), "mouse_sensitivity %.2f\ninvert_look %d\nvolume %.2f\nfullscreen %d\nstory_step %d\n",
+                          settings->mouse_sensitivity, settings->invert_look, settings->volume, settings->fullscreen,
+                          settings->story_step);
     for (int i = 0; i < settings->best_count && length < (int)sizeof(text); i++)
     {
         length += snprintf(text + length, sizeof(text) - (size_t)length, "best %s %.3f\n", settings->best[i].level,

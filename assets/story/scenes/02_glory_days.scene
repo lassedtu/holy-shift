@@ -1,0 +1,33 @@
+# 02 Glory days: after the club rally, before the forest stage
+# Goal: the first flashback. Rajka and Jelka were the best team in the country. Luka starts to ask questions.
+# Mood: proud and a bit sad. The flashback pictures use old, faded colors (like an old photo).
+
+# picture: A board or a screen with a list of names and times.
+# search: scoreboard, results board, timing screen
+image 02_results_board.png
+Luka: One second. That's nothing.
+Rajka: It's not nothing.
+Luka: So who is she?
+
+fade
+# picture: FLASHBACK (--sepia). A trophy cup, or a podium with a cup.
+# search: trophy cup, winner podium, vintage trophy
+image 02_past_podium.png top
+Rajka: She read the notes for me. Twenty years.
+Rajka: Nobody was faster than us. Nobody.
+
+# picture: FLASHBACK (--sepia). An old car's steering wheel.
+# search: vintage car interior, old steering wheel, classic car dashboard
+image 02_past_cockpit.png
+Jelka: Left four, don't cut. Into right three.
+Jelka: And don't lift there, you always want to lift there.
+Rajka: I never lift.
+
+# picture: FLASHBACK (--sepia). A narrow road along a lake at dusk.
+# search: lake road, road by lake sunset, lakeside road
+image 02_past_lake_road.png
+Luka: And then?
+Rajka: And then we stopped driving together.
+Luka: Why?
+Rajka: Map, Luka.
+fade
