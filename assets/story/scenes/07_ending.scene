@@ -2,9 +2,9 @@
 # Goal: Rajka admits that Jelka was right, they make up, Jelka leaves Zlo, the bingo hall is saved.
 # Mood: relief, a little emotional, and it ends on a joke.
 
-# picture: A finish line, or a dirty car after a race.
-# search: finish line rally, dirty car, race finish
-image 07_finish.png
+# picture: The same picture as in 01: Jelka's car and the Jugo side by side, now at the finish.
+# search: (uses 01_jelka_arrives)
+image 01_jelka_arrives.png top
 Rajka: It was flat.
 Jelka: Yes.
 Rajka: ...
@@ -16,15 +16,17 @@ image 07_sticker.png
 Zlo: You can't just... that's company property!
 Jelka (smile): Send me a letter.
 
-# picture: A small old community building in the sun, with a banner or flags.
-# search: village hall, community center building, bunting flags
+# note: there must be a banner for Rajka, and her name must be spelled wrong on it (for example THANK YOU RAIKA!).
+# note: Luka points at it in the dialogue, so the wrong name must be easy to read.
+# picture: A banner for Rajka on the hall, with her name spelled wrong.
+# search: banner on building, hand painted banner, village hall banner
 image 07_hall_saved.png
 Luka: They spelled your name wrong on the banner.
 Rajka: Leave it.
 
-# picture: A busy bingo night: tables, cards and markers, warm light.
-# search: bingo hall, bingo night, bingo cards markers
-image 07_bingo_night.png
+# picture: The same picture as in 00: the bingo table, now with Rajka and Jelka side by side.
+# search: (uses 00_bingo_night)
+image 00_bingo_night.png bottom
 : Seventy-one.
 Jelka: Mine.
 Rajka: That's not yours, you have seventy-four.

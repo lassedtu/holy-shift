@@ -18,7 +18,7 @@ image 06_past_crash.png
 Rajka: She called it flat. Right, flat, over the crest. I didn't believe her. I braked.
 # picture: FLASHBACK (--sepia). A lake shore with mud and reeds under a grey sky.
 # search: lake shore reeds, muddy shore, grey lake
-image 06_past_fight.png
+image 06_past_fight.png bottom
 Rajka (angry): She said I didn't trust her. I said she called it wrong.
 Luka: Did she?
 Rajka (sad): I don't know. I never drove that corner again.
@@ -26,7 +26,7 @@ Rajka (sad): I don't know. I never drove that corner again.
 fade
 # picture: A gravel road with a start line, a flag or a timing post, a car waiting.
 # search: rally start, starting line road, race start flag
-image 06_start_line.png
+image 06_start_line.png bottom
 Jelka: You remember this one.
 Rajka: I remember.
 Jelka: It was flat, Rajka.
