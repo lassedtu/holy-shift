@@ -103,7 +103,7 @@ void TreesUnload(Trees *trees)
 
 // Add the trees of the cells in front of the camera to the list, return the count
 static int CollectTrees(Trees *trees, const Forest *forest, Vector2 position, Vector2 forward,
-                        Vector2 right)
+                        Vector2 right, float pitch)
 {
     // The cells that touch the box around the visible area
     float half_width = tanf(VIEW_HFOV_DEG * 0.5f * DEG2RAD);
@@ -137,7 +137,10 @@ static int CollectTrees(Trees *trees, const Forest *forest, Vector2 position, Ve
                 const TreeSheet *model = &trees->variants[cell[i].variant].sheets[0];
                 float crown = 0.5f * (float)model->cell_width * cell[i].scale * TREE_MAP_PIXELS_PER_UNIT /
                               model->pixels_per_unit;
-                if (depth < TREE_NEAR || depth > FOG_END || fabsf(side) > depth * half_width + crown)
+                Vector2 base;
+                float front = Mode7Project(pitch, side, -CAMERA_HEIGHT, depth, &base);
+                if (depth < TREE_NEAR || depth > FOG_END || front <= 0.0f ||
+                    fabsf(side) > front * half_width + crown)
                 {
                     continue;
                 }
@@ -157,7 +160,7 @@ static int CompareDepth(const void *a, const void *b)
 }
 
 // Draw dots on the ground under a tree, so that the flat bottom of the trunk does not float on the ground
-static void DrawShadow(const Trees *trees, const VisibleTree *visible, float focal, float horizon)
+static void DrawShadow(const Trees *trees, const VisibleTree *visible, float focal, float pitch)
 {
     const Tree *tree = visible->tree;
     const TreeSheet *model = &trees->variants[tree->variant].sheets[0];
@@ -166,10 +169,12 @@ static void DrawShadow(const Trees *trees, const VisibleTree *visible, float foc
 
     // A circle on the ground is as wide as it is far away, and it is flat by the height of the camera
     float depth = visible->depth;
-    int x = (int)roundf(VIEW_WIDTH / 2.0f + visible->side / depth * focal);
-    int y = (int)roundf(horizon + CAMERA_HEIGHT * focal / depth);
-    int radius_x = (int)ceilf(radius * focal / depth);
-    int radius_y = (int)ceilf(radius * CAMERA_HEIGHT * focal / (depth * depth));
+    Vector2 center;
+    float front = Mode7Project(pitch, visible->side, -CAMERA_HEIGHT, depth, &center);
+    int x = (int)roundf(center.x);
+    int y = (int)roundf(center.y);
+    int radius_x = (int)ceilf(radius * focal / front);
+    int radius_y = (int)ceilf(radius * CAMERA_HEIGHT * focal / (front * front));
     float fog = Smoothstep(FOG_START, FOG_END, depth);
     unsigned char alpha = (unsigned char)(255.0f * (1.0f - fog));
     if (radius_y < 1)
@@ -183,16 +188,18 @@ static void DrawShadow(const Trees *trees, const VisibleTree *visible, float foc
 }
 
 static void DrawTree(const Trees *trees, const VisibleTree *visible, Vector2 position, float focal,
-                     float horizon)
+                     float pitch)
 {
     const Tree *tree = visible->tree;
     float depth = visible->depth;
+    Vector2 base;
+    float front = Mode7Project(pitch, visible->side, -CAMERA_HEIGHT, depth, &base);
 
     // Screen pixels for each pixel of the most detailed picture
     const TreeVariant *variant = &trees->variants[tree->variant];
     const TreeSheet *best = &variant->sheets[0];
     float map_per_pixel = tree->scale * TREE_MAP_PIXELS_PER_UNIT / best->pixels_per_unit;
-    float pixel = map_per_pixel * focal / depth;
+    float pixel = map_per_pixel * focal / front;
     int lod = 0;
     while (lod < TREE_LOD_COUNT - 1 && pixel < LOD_SWITCH_PIXELS * powf(0.5f, (float)lod))
     {
@@ -215,10 +222,8 @@ static void DrawTree(const Trees *trees, const VisibleTree *visible, Vector2 pos
     int column = TreeSheetColumn(sheet, azimuth);
     int row = TreeSheetRow(sheet, look_up);
 
-    float base_x = VIEW_WIDTH / 2.0f + visible->side / depth * focal;
-    float base_y = horizon + CAMERA_HEIGHT * focal / depth;
-    float left = roundf(base_x - sheet->anchor_x[row] * k);
-    float top = roundf(base_y - sheet->anchor_y[row] * k);
+    float left = roundf(base.x - sheet->anchor_x[row] * k);
+    float top = roundf(base.y - sheet->anchor_y[row] * k);
     Rectangle destination = {left, top, fmaxf(1.0f, roundf((float)sheet->cell_width * k)),
                              fmaxf(1.0f, roundf((float)sheet->cell_height * k))};
     Rectangle source = {(float)(column * sheet->cell_width), (float)(row * sheet->cell_height),
@@ -228,28 +233,27 @@ static void DrawTree(const Trees *trees, const VisibleTree *visible, Vector2 pos
     DrawTexturePro(sheet->texture, source, destination, (Vector2){0, 0}, 0.0f, FogTint(fog));
 }
 
-void TreesRender(Trees *trees, const Forest *forest, RenderTexture2D target, Vector2 position,
-                 float heading)
+void TreesRender(Trees *trees, const Forest *forest, RenderTexture2D target, Mode7Camera camera)
 {
     float focal = Mode7Focal();
-    float horizon = Mode7Horizon();
-    Vector2 forward = {cosf(heading), sinf(heading)};
+    Vector2 position = camera.position;
+    Vector2 forward = {cosf(camera.heading), sinf(camera.heading)};
     Vector2 right = {-forward.y, forward.x};
 
-    int count = CollectTrees(trees, forest, position, forward, right);
+    int count = CollectTrees(trees, forest, position, forward, right, camera.pitch);
     qsort(trees->visible, (size_t)count, sizeof(VisibleTree), CompareDepth);
 
     BeginTextureMode(target);
     BeginShaderMode(trees->shadow_shader);
     for (int i = 0; i < count; i++)
     {
-        DrawShadow(trees, &trees->visible[i], focal, horizon);
+        DrawShadow(trees, &trees->visible[i], focal, camera.pitch);
     }
     EndShaderMode();
     BeginShaderMode(trees->shader);
     for (int i = 0; i < count; i++)
     {
-        DrawTree(trees, &trees->visible[i], position, focal, horizon);
+        DrawTree(trees, &trees->visible[i], position, focal, camera.pitch);
     }
     EndShaderMode();
     EndTextureMode();

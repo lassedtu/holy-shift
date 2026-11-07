@@ -7,6 +7,7 @@
 #include "level/forest.h"
 #include "level/level.h"
 #include "raylib.h"
+#include "render/mode7.h"
 #include "render/tree_sheet.h"
 
 #define TREE_LOD_COUNT 3
@@ -42,8 +43,7 @@ bool TreesInit(Trees *trees, const Level *level, char *message, size_t size);
 void TreesUnload(Trees *trees);
 
 // Draw the trees on top of the road view
-// The target is the view of Mode7Render, the position and the heading are the same as for that call
-void TreesRender(Trees *trees, const Forest *forest, RenderTexture2D target, Vector2 position,
-                 float heading);
+// The target is the view of Mode7Render, the camera is the same as for that call
+void TreesRender(Trees *trees, const Forest *forest, RenderTexture2D target, Mode7Camera camera);
 
 #endif

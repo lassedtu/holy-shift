@@ -10,7 +10,7 @@
 #define VIEW_WIDTH 640 // game pixels
 #define VIEW_HEIGHT 360
 #define VIEW_HFOV_DEG 90.0f
-#define VIEW_PITCH_DEG 14.0f // the view looks down by this angle
+#define VIEW_PITCH_DEG 14.0f // the view looks down by this angle at the start
 
 // Paths, relative to the folder where the game starts (the project root)
 #define LEVELS_DIR "levels"
@@ -60,6 +60,8 @@
 // Camera control
 #define MOUSE_SENSITIVITY_DEG 0.12f // degrees for each pixel of mouse movement
 #define HEAD_MAX_YAW_DEG 120.0f     // the head turns this far to the left and to the right
+#define HEAD_MIN_PITCH_DEG -10.0f   // the head looks up this far, a negative angle is up
+#define HEAD_MAX_PITCH_DEG 45.0f    // the head looks down this far
 #define FLY_SPEED 100.0f            // map pixels each second in the fly mode
 
 #endif

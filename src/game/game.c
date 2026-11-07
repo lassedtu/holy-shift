@@ -1,9 +1,11 @@
 #include "game/game.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "core/config.h"
+#include "raymath.h"
 #include "render/present.h"
 #include "ui/hud.h"
 
@@ -13,6 +15,7 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
 {
     memset(game, 0, sizeof(*game));
     game->mode = options->mode;
+    game->mouse_ignore = options->screenshot != NULL;
 
     char name[LEVEL_MAX_NAME];
     if (options->level != NULL)
@@ -68,7 +71,15 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
         game->car.speed = 0.0f;
     }
 
-    game->head.yaw = options->yaw_deg;
+    float pitch_min;
+    float pitch_max;
+    CockpitPitchLimits(&game->cockpit, &pitch_min, &pitch_max);
+    HeadCameraInit(&game->head, options->yaw_deg, fmaxf(pitch_min, HEAD_MIN_PITCH_DEG),
+                   fminf(pitch_max, HEAD_MAX_PITCH_DEG));
+    if (options->has_pitch)
+    {
+        game->head.pitch = Clamp(options->pitch_deg, game->head.pitch_min, game->head.pitch_max);
+    }
     game->fly.position = game->car.position;
     game->fly.heading = game->car.heading + options->yaw_deg * DEG2RAD;
     return true;
@@ -92,14 +103,15 @@ void GameUpdate(Game *game, float dt)
     }
 
     // The first movement after the cursor is hidden can be a large jump
-    float mouse_dx = game->mouse_ready ? GetMouseDelta().x : 0.0f;
+    bool use_mouse = game->mouse_ready && !game->mouse_ignore;
+    Vector2 mouse = use_mouse ? GetMouseDelta() : (Vector2){0.0f, 0.0f};
     game->mouse_ready = true;
 
     if (game->mode == GAME_MODE_DEBUG_FLY)
     {
         float forward = (float)(IsKeyDown(KEY_W) - IsKeyDown(KEY_S));
         float right = (float)(IsKeyDown(KEY_D) - IsKeyDown(KEY_A));
-        FlyCameraUpdate(&game->fly, forward, right, mouse_dx, dt, (float)game->level.map_width,
+        FlyCameraUpdate(&game->fly, forward, right, mouse.x, dt, (float)game->level.map_width,
                         (float)game->level.map_height);
         return;
     }
@@ -108,7 +120,7 @@ void GameUpdate(Game *game, float dt)
     {
         CarDriverUpdate(game->driver, &game->car, dt);
     }
-    HeadCameraUpdate(&game->head, mouse_dx);
+    HeadCameraUpdate(&game->head, mouse.x, mouse.y);
 }
 
 void GameDraw(Game *game)
@@ -116,10 +128,14 @@ void GameDraw(Game *game)
     bool fly = game->mode == GAME_MODE_DEBUG_FLY;
 
     // The road view turns with the head, in the same way as the cabin
-    Vector2 position = fly ? game->fly.position : game->car.position;
-    float heading = fly ? game->fly.heading : game->car.heading + game->head.yaw * DEG2RAD;
-    Mode7Render(&game->mode7, game->textures.visual, position, heading);
-    TreesRender(&game->trees, &game->forest, game->mode7.target, position, heading);
+    Mode7Camera camera = {game->fly.position, game->fly.heading, VIEW_PITCH_DEG};
+    if (!fly)
+    {
+        camera = (Mode7Camera){game->car.position, game->car.heading + game->head.yaw * DEG2RAD,
+                               game->head.pitch};
+    }
+    Mode7Render(&game->mode7, game->textures.visual, camera);
+    TreesRender(&game->trees, &game->forest, game->mode7.target, camera);
 
     Rectangle destination = PresentDestination(GetScreenWidth(), GetScreenHeight());
     BeginDrawing();
@@ -127,7 +143,8 @@ void GameDraw(Game *game)
     Mode7Draw(&game->mode7, destination);
     if (!fly)
     {
-        CockpitDraw(&game->cockpit, destination, game->head.yaw, game->car.steer);
+        CockpitDraw(&game->cockpit, destination, game->head.yaw, game->head.pitch,
+                    game->car.steer);
         HudDraw(&game->car, destination);
     }
     EndDrawing();

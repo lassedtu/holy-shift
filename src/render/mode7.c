@@ -12,10 +12,18 @@ float Mode7Focal(void)
     return (VIEW_WIDTH / 2.0f) / tanf(VIEW_HFOV_DEG * 0.5f * DEG2RAD);
 }
 
-// The horizon is where the eye level is in the tilted view of the cabin
-float Mode7Horizon(void)
+float Mode7Project(float pitch, float side, float height, float depth, Vector2 *screen)
 {
-    return VIEW_HEIGHT / 2.0f - Mode7Focal() * tanf(VIEW_PITCH_DEG * DEG2RAD);
+    float angle = pitch * DEG2RAD;
+    float up = height * cosf(angle) + depth * sinf(angle);
+    float front = depth * cosf(angle) - height * sinf(angle);
+    if (front > 0.0f)
+    {
+        float focal = Mode7Focal();
+        screen->x = VIEW_WIDTH / 2.0f + side / front * focal;
+        screen->y = VIEW_HEIGHT / 2.0f - up / front * focal;
+    }
+    return front;
 }
 
 bool Mode7Init(Mode7 *mode7, char *message, size_t size)
@@ -36,13 +44,11 @@ bool Mode7Init(Mode7 *mode7, char *message, size_t size)
     SetTextureFilter(mode7->target.texture, TEXTURE_FILTER_POINT);
 
     float focal = Mode7Focal();
-    float horizon = Mode7Horizon();
 
     Shader shader = mode7->shader;
     ShaderSetVec2(shader, "resolution", VIEW_WIDTH, VIEW_HEIGHT);
     ShaderSetFloat(shader, "camHeight", CAMERA_HEIGHT);
     ShaderSetFloat(shader, "focal", focal);
-    ShaderSetFloat(shader, "horizon", horizon);
     ShaderSetColor(shader, "skyColor", COLOR_SKY);
     ShaderSetColor(shader, "fogColor", COLOR_FOG);
     // The tops of the tallest trees at the end of the fog are this many rows over the horizon
@@ -67,12 +73,13 @@ void Mode7Unload(Mode7 *mode7)
     *mode7 = (Mode7){0};
 }
 
-void Mode7Render(Mode7 *mode7, Texture2D ground, Vector2 position, float heading)
+void Mode7Render(Mode7 *mode7, Texture2D ground, Mode7Camera camera)
 {
     Shader shader = mode7->shader;
     ShaderSetVec2(shader, "mapSize", (float)ground.width, (float)ground.height);
-    ShaderSetVec2(shader, "camPos", position.x, position.y);
-    ShaderSetVec2(shader, "camDir", cosf(heading), sinf(heading));
+    ShaderSetVec2(shader, "camPos", camera.position.x, camera.position.y);
+    ShaderSetVec2(shader, "camDir", cosf(camera.heading), sinf(camera.heading));
+    ShaderSetFloat(shader, "pitch", camera.pitch * DEG2RAD);
 
     BeginTextureMode(mode7->target);
     ClearBackground(COLOR_SKY);

@@ -33,6 +33,11 @@ bool OptionsParse(Options *options, int argc, char **argv, char *message, size_t
         {
             options->yaw_deg = (float)atof(argv[++i]);
         }
+        else if (has_value && strcmp(argv[i], "--pitch") == 0)
+        {
+            options->pitch_deg = (float)atof(argv[++i]);
+            options->has_pitch = true;
+        }
         else if (argv[i][0] != '-' && argv[i][0] != '\0')
         {
             options->level = argv[i];

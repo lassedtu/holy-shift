@@ -19,6 +19,7 @@ static bool ReadMetrics(CockpitMetrics *metrics, char *message, size_t size)
     double px_per_deg = 0;
     double yaw_min_deg = 0;
     double lat_top_deg = 0;
+    double lat_bottom_deg = 0;
     double wheel_x = 0;
     double wheel_y = 0;
     double frame_width = 0;
@@ -26,6 +27,7 @@ static bool ReadMetrics(CockpitMetrics *metrics, char *message, size_t size)
     bool valid = JsonReadNumber(text, "px_per_deg", &px_per_deg) &&
                  JsonReadNumber(text, "yaw_min_deg", &yaw_min_deg) &&
                  JsonReadNumber(text, "lat_top_deg", &lat_top_deg) &&
+                 JsonReadNumber(text, "lat_bottom_deg", &lat_bottom_deg) &&
                  JsonReadNumber(text, "x", &wheel_x) && JsonReadNumber(text, "y", &wheel_y) &&
                  JsonReadNumber(text, "frame_width", &frame_width) &&
                  JsonReadNumber(text, "frame_height", &frame_height);
@@ -41,6 +43,7 @@ static bool ReadMetrics(CockpitMetrics *metrics, char *message, size_t size)
     metrics->px_per_deg = (float)px_per_deg;
     metrics->yaw_min_deg = (float)yaw_min_deg;
     metrics->lat_top_deg = (float)lat_top_deg;
+    metrics->lat_bottom_deg = (float)lat_bottom_deg;
     metrics->wheel_x = (int)wheel_x;
     metrics->wheel_y = (int)wheel_y;
     metrics->wheel_frame_width = (int)frame_width;
@@ -87,7 +90,6 @@ bool CockpitLoad(Cockpit *cockpit, char *message, size_t size)
     SetTextureWrap(cockpit->wheel, TEXTURE_WRAP_CLAMP);
 
     Shader shader = cockpit->shader;
-    ShaderSetFloat(shader, "pitchDown", VIEW_PITCH_DEG);
     ShaderSetVec2(shader, "panoSize", (float)cockpit->panorama.width,
                   (float)cockpit->panorama.height);
     ShaderSetFloat(shader, "ppd", metrics->px_per_deg);
@@ -132,7 +134,16 @@ static int NearestWheelFrame(const CockpitMetrics *metrics, float angle_deg)
     return best;
 }
 
-void CockpitDraw(const Cockpit *cockpit, Rectangle destination, float head_yaw, float steer)
+void CockpitPitchLimits(const Cockpit *cockpit, float *pitch_min, float *pitch_max)
+{
+    float half_height_deg =
+        atanf(tanf(VIEW_HFOV_DEG * 0.5f * DEG2RAD) * VIEW_HEIGHT / VIEW_WIDTH) * RAD2DEG;
+    *pitch_min = half_height_deg - cockpit->metrics.lat_top_deg;
+    *pitch_max = -cockpit->metrics.lat_bottom_deg - half_height_deg;
+}
+
+void CockpitDraw(const Cockpit *cockpit, Rectangle destination, float head_yaw, float head_pitch,
+                 float steer)
 {
     const CockpitMetrics *metrics = &cockpit->metrics;
     Shader shader = cockpit->shader;
@@ -146,6 +157,7 @@ void CockpitDraw(const Cockpit *cockpit, Rectangle destination, float head_yaw, 
     ShaderSetVec2(shader, "center", destination.x + destination.width / 2.0f,
                   (float)GetScreenHeight() - (destination.y + destination.height / 2.0f));
     ShaderSetFloat(shader, "headYaw", head_yaw);
+    ShaderSetFloat(shader, "pitchDown", head_pitch);
     ShaderSetFloat(shader, "wheelFrame", (float)frame);
 
     BeginShaderMode(shader);

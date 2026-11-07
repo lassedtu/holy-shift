@@ -36,7 +36,8 @@ typedef struct Game
 
     HeadCamera head;
     FlyCamera fly;
-    bool mouse_ready; // false until the first frame, the first mouse movement is not valid
+    bool mouse_ready;  // false until the first frame, the first mouse movement is not valid
+    bool mouse_ignore; // true when the mouse must not move the view, for a picture of --shot
 
     Mode7 mode7;
     Trees trees;
