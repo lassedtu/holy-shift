@@ -20,6 +20,10 @@ typedef struct CarControls
 // Return 0 for neutral
 float CarGearTopSpeed(int gear);
 
+// Turn the starter motor of an engine that is off
+// The engine runs again after a short time
+void CarStartEngine(Car *car);
+
 // Move the car for a time step, on the surface under the car
 // The function does not read input, so it can be tested without a window
 void CarPhysicsStep(Car *car, const CarControls *controls, Surface surface, float dt);

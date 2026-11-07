@@ -14,8 +14,27 @@
 
 #define RPM_IDLE 900.0f
 #define RPM_PEAK 3500.0f // the engine pulls hardest at this speed
-#define RPM_LAUNCH 2500.0f // engine speed at full throttle while the clutch slips at the start
-#define RPM_FREE_RATE 9000.0f // change each second of an engine that does not turn the wheels
+#define RPM_LUG 1500.0f   // below this speed the engine pulls much less
+#define RPM_LUG_MIN 600.0f // the engine pulls only LUG_MIN_TORQUE at this speed
+#define LUG_MIN_TORQUE 0.15f
+#define RPM_FREE_RATE 6000.0f // change each second of an engine that does not turn the wheels
+#define RPM_RISE_RATE 12000.0f // largest rise each second of an engine that turns the wheels
+#define RPM_FALL_RATE 9000.0f  // largest fall each second of an engine that turns the wheels
+
+#define LAUNCH_SPEED 80.0f         // the clutch must engage below this speed for a launch, and the boost is gone at it
+#define LAUNCH_BOOST 140.0f        // extra acceleration of a perfect launch
+#define LAUNCH_BOOST_SECONDS 0.8f  // the boost fades out in this time
+#define LAUNCH_MIN_RPM 1500.0f     // a launch from a lower engine speed gives no boost
+#define LAUNCH_OVER_QUALITY 0.65f  // quality of a launch from the rev limiter, the wheels spin too much
+
+#define STALL_RPM 600.0f         // the engine stalls when the wheels turn it slower than this
+#define STALL_LAUNCH_RPM 1500.0f // only gears where the clutch slips below this speed can stall
+#define STALL_THROTTLE 0.3f      // the engine only stalls when it pulls with more throttle than this
+#define STALL_SECONDS 0.6f       // the engine sputters this long before it stops
+#define STOP_RATE 2500.0f        // change of the engine speed each second while it stops
+#define CRANK_RPM 250.0f         // engine speed while the starter motor turns it
+#define START_SECONDS 0.6f
+#define START_RPM 1200.0f        // engine speed when the engine starts
 
 #define DRIVE_FORCE 6000.0f        // acceleration at peak torque times the top speed of the gear
 #define ENGINE_BRAKE_FORCE 1000.0f // deceleration at the red line without throttle, times the top speed of the gear
@@ -39,6 +58,9 @@
 // Index is the gear plus 1: reverse, neutral, then 1 to 5
 static const float GEAR_TOP_SPEED[CAR_GEAR_TOP + 2] = {90.0f, 0.0f, 110.0f, 175.0f, 245.0f, 310.0f, 370.0f};
 
+// Engine speed at full throttle while the automatic clutch slips, the high gears slip less
+static const float GEAR_LAUNCH_RPM[CAR_GEAR_TOP + 2] = {2500.0f, 0.0f, 2500.0f, 1800.0f, 1200.0f, 1100.0f, 1000.0f};
+
 float CarGearTopSpeed(int gear)
 {
     if (gear < CAR_GEAR_REVERSE || gear > CAR_GEAR_TOP)
@@ -58,6 +80,26 @@ static float Torque(float rpm)
     return Lerp(1.0f, 0.7f, (rpm - RPM_PEAK) / (CAR_RPM_RED - RPM_PEAK));
 }
 
+// Part of the pull that is left when the engine turns too slowly for its gear
+static float Lug(float rpm)
+{
+    return Lerp(LUG_MIN_TORQUE, 1.0f, Clamp((rpm - RPM_LUG_MIN) / (RPM_LUG - RPM_LUG_MIN), 0.0f, 1.0f));
+}
+
+// Return from 0 to 1 how good a launch from an engine speed is
+static float LaunchQuality(float rpm)
+{
+    if (rpm < CAR_LAUNCH_SWEET_LOW)
+    {
+        return Clamp((rpm - LAUNCH_MIN_RPM) / (CAR_LAUNCH_SWEET_LOW - LAUNCH_MIN_RPM), 0.0f, 1.0f);
+    }
+    if (rpm <= CAR_LAUNCH_SWEET_HIGH)
+    {
+        return 1.0f;
+    }
+    return Lerp(1.0f, LAUNCH_OVER_QUALITY, Clamp((rpm - CAR_LAUNCH_SWEET_HIGH) / (CAR_RPM_LIMIT - CAR_LAUNCH_SWEET_HIGH), 0.0f, 1.0f));
+}
+
 static void UpdateSteering(Car *car, float input, float dt)
 {
     input = Clamp(input, -1.0f, 1.0f);
@@ -67,19 +109,76 @@ static void UpdateSteering(Car *car, float input, float dt)
 
 // Return the acceleration of the engine along the car, and set the engine speed
 // The engine braking is added to resist, because it can only slow the car down
+void CarStartEngine(Car *car)
+{
+    if (car->engine_off && car->starting <= 0.0f)
+    {
+        car->starting = START_SECONDS;
+    }
+}
+
 static float UpdateEngine(Car *car, const CarControls *controls, float *resist, float dt)
 {
+    if (car->starting > 0.0f)
+    {
+        car->starting -= dt;
+        car->rpm = CRANK_RPM;
+        if (car->starting <= 0.0f)
+        {
+            car->starting = 0.0f;
+            car->engine_off = false;
+            car->rpm = START_RPM;
+        }
+        return 0.0f;
+    }
+    if (car->engine_off)
+    {
+        car->rpm = MoveToward(car->rpm, 0.0f, STOP_RATE * dt);
+        return 0.0f;
+    }
+
     float top = CarGearTopSpeed(car->gear);
+    float launch = Clamp(1.0f - fabsf(car->speed) / LAUNCH_SPEED, 0.0f, 1.0f);
     if (top <= 0.0f || controls->clutch)
     {
+        car->clutch_in = true;
+        // A standing car revs with the throttle, a moving car in gear goes to the speed of the gear, like in a shift
         float target = RPM_IDLE + controls->throttle * (CAR_RPM_LIMIT - RPM_IDLE);
+        if (top > 0.0f)
+        {
+            float wheel_rpm = fmaxf(fabsf(car->speed) * CAR_RPM_RED / top, RPM_IDLE);
+            target = Lerp(wheel_rpm, fmaxf(target, wheel_rpm), launch);
+        }
         car->rpm = MoveToward(car->rpm, target, RPM_FREE_RATE * dt);
         return 0.0f;
     }
 
     float wheel_rpm = fabsf(car->speed) * CAR_RPM_RED / top;
-    float slip_rpm = RPM_IDLE + controls->throttle * (RPM_LAUNCH - RPM_IDLE);
-    car->rpm = fmaxf(wheel_rpm, slip_rpm);
+    float launch_rpm = GEAR_LAUNCH_RPM[car->gear + 1];
+    float slip_rpm = RPM_IDLE + controls->throttle * fmaxf(launch_rpm - RPM_IDLE, 0.0f);
+    // A sliding car still turns its wheels, so the sideways speed counts too
+    float rolling_rpm = hypotf(car->speed, car->slip) * CAR_RPM_RED / top;
+    bool choking = launch_rpm < STALL_LAUNCH_RPM && controls->throttle > STALL_THROTTLE && rolling_rpm < STALL_RPM;
+    car->stall = MoveToward(car->stall, choking ? 1.0f : 0.0f, dt / STALL_SECONDS);
+    if (car->stall >= 1.0f)
+    {
+        car->stall = 0.0f;
+        car->engine_off = true;
+        return 0.0f;
+    }
+    // When the clutch engages at a stop, the engine speed at that moment sets the boost of the launch
+    if (car->clutch_in && launch >= 1.0f - 0.25f && car->gear != CAR_GEAR_REVERSE)
+    {
+        car->launch_quality = LaunchQuality(car->rpm);
+        car->launch_boost = LAUNCH_BOOST * car->launch_quality;
+    }
+    car->clutch_in = false;
+    float boost = car->launch_boost * launch;
+    car->launch_boost = MoveToward(car->launch_boost, 0.0f, LAUNCH_BOOST / LAUNCH_BOOST_SECONDS * dt);
+
+    float target = Lerp(fmaxf(wheel_rpm, slip_rpm), wheel_rpm, car->stall);
+    car->rpm = MoveToward(car->rpm, target, (target > car->rpm ? RPM_RISE_RATE : RPM_FALL_RATE) * dt);
+    float direction = car->gear == CAR_GEAR_REVERSE ? -1.0f : 1.0f;
 
     if (wheel_rpm > slip_rpm)
     {
@@ -92,10 +191,9 @@ static float UpdateEngine(Car *car, const CarControls *controls, float *resist, 
     }
     if (car->rpm >= CAR_RPM_LIMIT)
     {
-        return 0.0f;
+        return direction * boost;
     }
-    float direction = car->gear == CAR_GEAR_REVERSE ? -1.0f : 1.0f;
-    return direction * controls->throttle * Torque(car->rpm) * DRIVE_FORCE / top;
+    return direction * (controls->throttle * Torque(car->rpm) * Lug(car->rpm) * DRIVE_FORCE / top + boost);
 }
 
 void CarPhysicsStep(Car *car, const CarControls *controls, Surface surface, float dt)

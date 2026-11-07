@@ -10,6 +10,8 @@
 #define RPM_BAR_WIDTH 120 // view pixels
 #define RPM_BAR_HEIGHT 6
 #define RPM_SHIFT 5600.0f // the shift light is on above this engine speed
+#define LAUNCH_TEXT_SECONDS 1.5f
+#define SWEET_COLOR ((Color){40, 200, 80, 255})
 
 static const char *GearName(int gear)
 {
@@ -23,10 +25,10 @@ static const char *FormatTime(float seconds)
     return TextFormat("%d:%02d.%02d", hundredths / 6000, hundredths / 100 % 60, hundredths % 100);
 }
 
-static void DrawCentered(const char *text, Rectangle destination, float y, int size)
+static void DrawCentered(const char *text, Rectangle destination, float y, int size, Color color)
 {
     int width = MeasureText(text, size);
-    DrawText(text, (int)(destination.x + (destination.width - (float)width) / 2.0f), (int)y, size, WHITE);
+    DrawText(text, (int)(destination.x + (destination.width - (float)width) / 2.0f), (int)y, size, color);
 }
 
 void HudDraw(const Car *car, const Stage *stage, Rectangle destination)
@@ -45,11 +47,30 @@ void HudDraw(const Car *car, const Stage *stage, Rectangle destination)
     int bar_height = (int)(RPM_BAR_HEIGHT * scale);
     int red_x = x + (int)((float)bar_width * RPM_SHIFT / CAR_RPM_LIMIT);
     int filled = (int)((float)bar_width * fminf(car->rpm / CAR_RPM_LIMIT, 1.0f));
-    bool shift = car->rpm >= RPM_SHIFT && car->gear > CAR_GEAR_NEUTRAL && car->gear < CAR_GEAR_TOP;
+    bool countdown = stage != NULL && stage->phase == STAGE_COUNTDOWN;
+    bool shift = !countdown && car->rpm >= RPM_SHIFT && car->gear > CAR_GEAR_NEUTRAL && car->gear < CAR_GEAR_TOP;
+    bool sweet = car->rpm >= CAR_LAUNCH_SWEET_LOW && car->rpm <= CAR_LAUNCH_SWEET_HIGH;
     DrawRectangle(x, bar_y, bar_width, bar_height, (Color){0, 0, 0, 140});
     DrawRectangle(red_x, bar_y, x + bar_width - red_x, bar_height, (Color){120, 0, 0, 200});
-    DrawRectangle(x, bar_y, filled, bar_height, shift ? RED : WHITE);
-    if (shift)
+    if (countdown)
+    {
+        // The best engine speed for the launch
+        int sweet_x = x + (int)((float)bar_width * CAR_LAUNCH_SWEET_LOW / CAR_RPM_LIMIT);
+        int sweet_end = x + (int)((float)bar_width * CAR_LAUNCH_SWEET_HIGH / CAR_RPM_LIMIT);
+        DrawRectangle(sweet_x, bar_y, sweet_end - sweet_x, bar_height, (Color){20, 90, 40, 220});
+    }
+    Color fill = shift ? RED : WHITE;
+    if (countdown && sweet)
+    {
+        fill = SWEET_COLOR;
+    }
+    DrawRectangle(x, bar_y, filled, bar_height, fill);
+    if (car->engine_off)
+    {
+        const char *text = car->starting > 0.0f ? "STARTING" : "STALLED - shift down";
+        DrawText(text, x + bar_width + (int)(4 * scale), bar_y - (size - bar_height) / 2, size, RED);
+    }
+    else if (shift)
     {
         DrawText("SHIFT", x + bar_width + (int)(4 * scale), bar_y - (size - bar_height) / 2, size, RED);
     }
@@ -63,15 +84,27 @@ void HudDraw(const Car *car, const Stage *stage, Rectangle destination)
     float middle = destination.y + destination.height * 0.3f;
     if (stage->phase == STAGE_COUNTDOWN)
     {
-        DrawCentered(TextFormat("%d", (int)ceilf(stage->countdown)), destination, middle, big);
+        DrawCentered(TextFormat("%d", (int)ceilf(stage->countdown)), destination, middle, big, WHITE);
     }
-    else if (stage->phase == STAGE_RUNNING && stage->time < 1.0f)
+    else if (stage->phase == STAGE_RUNNING && stage->time < LAUNCH_TEXT_SECONDS)
     {
-        DrawCentered("GO", destination, middle, big);
+        if (stage->time < 1.0f)
+        {
+            DrawCentered("GO", destination, middle, big, WHITE);
+        }
+        float below = middle + (float)big + 4.0f * scale;
+        if (car->launch_quality >= 0.95f)
+        {
+            DrawCentered("PERFECT START", destination, below, size * 2, SWEET_COLOR);
+        }
+        else if (car->launch_quality >= 0.6f)
+        {
+            DrawCentered("GOOD START", destination, below, size * 2, YELLOW);
+        }
     }
     else if (stage->phase == STAGE_FINISHED)
     {
-        DrawCentered(TextFormat("FINISH  %s", FormatTime(stage->time)), destination, middle, big);
-        DrawCentered("R to drive again", destination, middle + (float)big + 4.0f * scale, size);
+        DrawCentered(TextFormat("FINISH  %s", FormatTime(stage->time)), destination, middle, big, WHITE);
+        DrawCentered("R to drive again", destination, middle + (float)big + 4.0f * scale, size, WHITE);
     }
 }

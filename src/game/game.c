@@ -82,6 +82,9 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
     {
         game->head.pitch = Clamp(options->pitch_deg, game->head.pitch_min, game->head.pitch_max);
     }
+    CarAudioInit(&game->audio, &game->car);
+    CarAudioSetPlaying(&game->audio, game->mode != GAME_MODE_DEBUG_FLY);
+
     game->fly.position = game->car.position;
     game->fly.heading = game->car.heading + options->yaw_deg * DEG2RAD;
     return true;
@@ -89,6 +92,7 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
 
 void GameShutdown(Game *game)
 {
+    CarAudioUnload(&game->audio);
     CockpitUnload(&game->cockpit);
     TreesUnload(&game->trees);
     Mode7Unload(&game->mode7);
@@ -136,6 +140,7 @@ void GameUpdate(Game *game, float dt)
     {
         StageUpdate(&game->stage, &game->car, dt);
     }
+    CarAudioUpdate(&game->audio, &game->car, SurfaceAt(&game->surface, game->car.position));
     HeadCameraUpdate(&game->head, mouse.x, mouse.y);
 }
 

@@ -28,11 +28,19 @@ int main(int argc, char **argv)
     InitWindow(VIEW_WIDTH * WINDOW_SCALE, VIEW_HEIGHT * WINDOW_SCALE, WINDOW_TITLE);
     SetTargetFPS(TARGET_FPS);
     DisableCursor(); // the mouse movement turns the camera
+    if (options.screenshot == NULL)
+    {
+        InitAudioDevice();
+    }
 
     static Game game;
     if (!GameInit(&game, &options, message, sizeof(message)))
     {
         fprintf(stderr, "%s\n", message);
+        if (IsAudioDeviceReady())
+        {
+            CloseAudioDevice();
+        }
         CloseWindow();
         return 1;
     }
@@ -51,6 +59,10 @@ int main(int argc, char **argv)
     }
 
     GameShutdown(&game);
+    if (IsAudioDeviceReady())
+    {
+        CloseAudioDevice();
+    }
     CloseWindow();
     return 0;
 }

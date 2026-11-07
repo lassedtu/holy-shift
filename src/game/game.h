@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "audio/car_audio.h"
 #include "camera/fly_camera.h"
 #include "camera/head_camera.h"
 #include "car/car.h"
@@ -49,10 +50,11 @@ typedef struct Game
     Mode7 mode7;
     Trees trees;
     Cockpit cockpit;
+    CarAudio audio;
 } Game;
 
 // Load the level and the images, write the reason in message when it fails
-// The window must be open
+// The window must be open, the game has sound when the audio device is ready
 bool GameInit(Game *game, const Options *options, char *message, size_t size);
 void GameShutdown(Game *game);
 

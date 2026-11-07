@@ -12,6 +12,7 @@
 // W and S are the throttle and the brake, A and D steer, space is the handbrake
 // E and Q or the mouse wheel shift up and down
 // The clutch is automatic: it is down for a short time at each shift
+// After a stall, a shift down starts the engine again
 typedef struct PlayerDriver
 {
     CarDriver base; // must be the first member

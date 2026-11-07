@@ -25,6 +25,8 @@
 #define SHADER_TREES_PATH "assets/shaders/trees.fs"
 #define SHADER_SHADOW_PATH "assets/shaders/shadow.fs"
 #define TREE_SHEET_DIR "assets/trees" // the pictures of the trees, see level/tree_species.h
+#define SOUND_SCREECH_PATH "assets/sounds/tire_screech.wav" // made by scripts/screech_loop.py
+#define SOUND_GEAR_PATH "assets/sounds/gear_change.wav"     // made by scripts/gear_sound.py
 
 // Map
 #define MAP_PIXELS_PER_METER 8.0f // the road is 6 meters wide

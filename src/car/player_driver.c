@@ -21,6 +21,10 @@ static void Shift(PlayerDriver *driver, Car *car, int direction)
     }
     car->gear = gear;
     driver->shift_left = SHIFT_SECONDS;
+    if (direction < 0)
+    {
+        CarStartEngine(car);
+    }
 }
 
 static void PlayerDriverUpdate(CarDriver *base, Car *car, float dt)
