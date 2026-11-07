@@ -27,6 +27,10 @@
 #define TREE_SHEET_DIR "assets/trees"                       // the pictures of the trees, see level/tree_species.h
 #define SOUND_SCREECH_PATH "assets/sounds/tire_screech.wav" // made by scripts/screech_loop.py
 #define SOUND_GEAR_PATH "assets/sounds/gear_change.wav"     // made by scripts/sound_clips.py
+#define UI_DIR "assets/ui"                                  // Kenney Pixel UI Pack (CC0), see assets/ui/Kenney-License.txt
+#define SAVE_PATH "save.txt"                                // the settings and the best times
+#define FONT_PATH "assets/fonts/Jersey15-Regular.ttf"       // Jersey 15, SIL Open Font License, see assets/fonts/
+#define FONT_GRID 27 // the font is sharp at multiples of this size, one pixel of the font is 1/27 of the size
 #define SOUND_CRASH_PATH "assets/sounds/crash.wav"          // made by scripts/sound_clips.py
 
 // Map

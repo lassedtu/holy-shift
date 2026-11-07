@@ -2,8 +2,9 @@
 
 #include "core/config.h"
 #include "core/options.h"
-#include "game/game.h"
+#include "app/app.h"
 #include "raylib.h"
+#include "ui/text.h"
 
 #define SCREENSHOT_FRAME 3 // frame of the picture, the first frames can be incomplete
 
@@ -27,14 +28,14 @@ int main(int argc, char **argv)
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(VIEW_WIDTH * WINDOW_SCALE, VIEW_HEIGHT * WINDOW_SCALE, WINDOW_TITLE);
     SetTargetFPS(TARGET_FPS);
-    DisableCursor(); // the mouse movement turns the camera
+    SetExitKey(KEY_NULL); // Esc opens the pause menu
     if (options.screenshot == NULL)
     {
         InitAudioDevice();
     }
 
-    static Game game;
-    if (!GameInit(&game, &options, message, sizeof(message)))
+    static App app;
+    if (!AppInit(&app, &options, message, sizeof(message)))
     {
         fprintf(stderr, "%s\n", message);
         if (IsAudioDeviceReady())
@@ -46,10 +47,9 @@ int main(int argc, char **argv)
     }
 
     int frames = 0;
-    while (!WindowShouldClose())
+    while (!WindowShouldClose() && !AppShouldQuit(&app))
     {
-        GameUpdate(&game, GetFrameTime());
-        GameDraw(&game);
+        AppFrame(&app);
 
         if (options.screenshot != NULL && ++frames == SCREENSHOT_FRAME)
         {
@@ -58,7 +58,8 @@ int main(int argc, char **argv)
         }
     }
 
-    GameShutdown(&game);
+    AppShutdown(&app);
+    TextUnloadAll();
     if (IsAudioDeviceReady())
     {
         CloseAudioDevice();

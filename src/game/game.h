@@ -28,7 +28,7 @@
 // Everything of the running game
 // The car is moved by a driver, the other parts only read the state of the car
 // In the normal mode the player drives a stage, R starts the stage again
-// When the car hits a tree, the view fades to black and the stage starts again
+// When the car hits a tree, the view fades to black, then the stage starts again or a menu opens (crash_menu)
 // In the fly mode a free camera is used and the car is not shown
 typedef struct Game
 {
@@ -52,6 +52,10 @@ typedef struct Game
     bool mouse_ignore; // true when the mouse must not move the view, for a picture of --shot
     float crash_time;  // seconds since the car hit a tree, negative when there is no crash
     float fade_in;     // seconds left of the fade in after the stage starts again
+    bool crash_menu;   // true when a menu decides what happens after a crash, false to start again
+    bool show_hud;
+    float mouse_sensitivity; // 1 is MOUSE_SENSITIVITY_DEG
+    bool invert_look;
 
     Mode7 mode7;
     Trees trees;
@@ -66,6 +70,20 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size);
 void GameShutdown(Game *game);
 
 void GameUpdate(Game *game, float dt);
-void GameDraw(Game *game);
+
+// Draw the views of the game into their textures, before BeginDrawing
+void GameRender(Game *game);
+
+// Draw the rendered game into an area of the window, between BeginDrawing and EndDrawing
+void GameDrawView(const Game *game, Rectangle destination);
+
+// Start the stage again with a fade in
+void GameRestart(Game *game);
+
+// Call this when the game continues after a menu, so the first mouse movement does not turn the head
+void GameResume(Game *game);
+
+// Return true when the view is black after a crash
+bool GameCrashOver(const Game *game);
 
 #endif

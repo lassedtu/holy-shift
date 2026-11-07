@@ -3,6 +3,7 @@
 #include <math.h>
 
 #include "core/config.h"
+#include "ui/text.h"
 
 #define HUD_MARGIN 5     // view pixels
 #define HUD_FONT_SIZE 10 // view pixels
@@ -19,7 +20,7 @@ static const char *GearName(int gear)
     return names[gear - CAR_GEAR_REVERSE];
 }
 
-static const char *FormatTime(float seconds)
+const char *HudFormatTime(float seconds)
 {
     int hundredths = (int)(seconds * 100.0f);
     return TextFormat("%d:%02d.%02d", hundredths / 6000, hundredths / 100 % 60, hundredths % 100);
@@ -27,8 +28,8 @@ static const char *FormatTime(float seconds)
 
 static void DrawCentered(const char *text, Rectangle destination, float y, int size, Color color)
 {
-    int width = MeasureText(text, size);
-    DrawText(text, (int)(destination.x + (destination.width - (float)width) / 2.0f), (int)y, size, color);
+    int width = TextWidth(text, size);
+    TextDraw(text, (int)(destination.x + (destination.width - (float)width) / 2.0f), (int)y, size, color);
 }
 
 void HudDraw(const Car *car, const Stage *stage, Rectangle destination)
@@ -39,7 +40,7 @@ void HudDraw(const Car *car, const Stage *stage, Rectangle destination)
     int y = (int)(destination.y + HUD_MARGIN * scale);
 
     float kmh = fabsf(car->speed) / MAP_PIXELS_PER_METER * 3.6f;
-    DrawText(TextFormat("%3d km/h  gear %s  %4d rpm", (int)kmh, GearName(car->gear), (int)car->rpm), x, y,
+    TextDraw(TextFormat("%3d km/h  gear %s  %4d rpm", (int)kmh, GearName(car->gear), (int)car->rpm), x, y,
              size, WHITE);
 
     int bar_y = y + size + (int)(2 * scale);
@@ -68,18 +69,18 @@ void HudDraw(const Car *car, const Stage *stage, Rectangle destination)
     if (car->engine_off)
     {
         const char *text = car->starting > 0.0f ? "STARTING" : "STALLED - shift down";
-        DrawText(text, x + bar_width + (int)(4 * scale), bar_y - (size - bar_height) / 2, size, RED);
+        TextDraw(text, x + bar_width + (int)(4 * scale), bar_y - (size - bar_height) / 2, size, RED);
     }
     else if (shift)
     {
-        DrawText("SHIFT", x + bar_width + (int)(4 * scale), bar_y - (size - bar_height) / 2, size, RED);
+        TextDraw("SHIFT", x + bar_width + (int)(4 * scale), bar_y - (size - bar_height) / 2, size, RED);
     }
     if (stage == NULL)
     {
         return;
     }
 
-    DrawText(FormatTime(stage->time), x, bar_y + bar_height + (int)(2 * scale), size, WHITE);
+    TextDraw(HudFormatTime(stage->time), x, bar_y + bar_height + (int)(2 * scale), size, WHITE);
     int big = (int)(HUD_BIG_FONT_SIZE * scale);
     float middle = destination.y + destination.height * 0.3f;
     if (stage->phase == STAGE_COUNTDOWN)
@@ -101,10 +102,5 @@ void HudDraw(const Car *car, const Stage *stage, Rectangle destination)
         {
             DrawCentered("GOOD START", destination, below, size * 2, YELLOW);
         }
-    }
-    else if (stage->phase == STAGE_FINISHED)
-    {
-        DrawCentered(TextFormat("FINISH  %s", FormatTime(stage->time)), destination, middle, big, WHITE);
-        DrawCentered("R to drive again", destination, middle + (float)big + 4.0f * scale, size, WHITE);
     }
 }

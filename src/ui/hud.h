@@ -9,4 +9,7 @@
 // The stage can be NULL, then only the car is shown
 void HudDraw(const Car *car, const Stage *stage, Rectangle destination);
 
+// Return a time in seconds as text, for example "1:02.37"
+const char *HudFormatTime(float seconds);
+
 #endif

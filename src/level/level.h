@@ -37,6 +37,9 @@ void LevelFilePath(const Level *level, const char *file, char *path, size_t size
 // Write the name of the first saved level (in alphabetical order), return false if there is none
 bool LevelFindFirst(char *name, size_t size);
 
+// Write the names of the saved levels in alphabetical order, at most max names, return the count
+int LevelFindAll(char names[][LEVEL_MAX_NAME], int max);
+
 // Write the names of all saved levels, separated by commas
 void LevelListNames(char *list, size_t size);
 

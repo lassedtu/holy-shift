@@ -5,13 +5,17 @@
 #include "core/config.h"
 #include "raymath.h"
 #include "rlgl.h"
+#include "ui/text.h"
 #include "util/math_util.h"
 
-#define PAPER_WIDTH 152 // texture pixels
-#define PAPER_HEIGHT 224
-#define NOTE_HEIGHT 76    // height of the text area at the bottom of the paper
-#define MAP_SCALE 0.17f   // paper pixels for each map pixel
-#define CAR_Y 128.0f      // the car is this far down on the paper
+#define PAPER_WIDTH 304 // texture pixels, about one for each game pixel when the map is in the middle of the view
+#define PAPER_HEIGHT 448
+#define NOTE_HEIGHT 148 // height of the text area at the bottom of the paper
+#define MARK_SIZE FONT_GRID // pixel sizes of the text, multiples of FONT_GRID are sharp
+#define CALL_SIZE (2 * FONT_GRID)
+#define NOTE_SIZE FONT_GRID
+#define MAP_SCALE 0.34f // paper pixels for each map pixel
+#define CAR_Y 256.0f    // the car is this far down on the paper
 #define DRAW_BEHIND 80.0f // the road is drawn this far behind the car, in map pixels
 #define DRAW_AHEAD 900.0f // and this far ahead of the car
 #define DRAW_STEP 8.0f
@@ -29,7 +33,7 @@
 #define HOLD_ROLL_DEG -6.0f // the top of the map leans towards the driver
 #define SWAY_ROLL_DEG 1.2f
 #define SWAY_BOB 0.004f
-#define VISIBLE_MARGIN_DEG 20.0f // the map is drawn when the head yaw is this near to the edge of the view
+#define VISIBLE_MARGIN_DEG 5.0f // extra angle for the sway of the map
 
 #define COLOR_PAPER ((Color){226, 214, 184, 255})
 #define COLOR_PAPER_DARK ((Color){196, 182, 150, 255})
@@ -108,8 +112,8 @@ static void DrawRoad(const PaceMap *map, const Track *track, Vector2 center)
     }
     if (count >= 2)
     {
-        DrawSplineLinear(points, count, 5.0f, COLOR_INK);
-        DrawSplineLinear(points, count, 2.0f, COLOR_ROAD_INK);
+        DrawSplineLinear(points, count, 10.0f, COLOR_INK);
+        DrawSplineLinear(points, count, 4.0f, COLOR_ROAD_INK);
     }
 }
 
@@ -140,20 +144,21 @@ static void DrawCornerNotes(const PaceMap *map, const Track *track, const PaceNo
         Vector2 apex = ToPaper(map, center, TrackPoint(track, corner->apex));
         Vector2 offset = ToPaper(map, center, Vector2Add(TrackPoint(track, corner->apex), outside));
         Vector2 direction = Vector2Normalize(Vector2Subtract(offset, apex));
-        Vector2 at = Vector2Add(apex, Vector2Scale(direction, 14.0f));
+        Vector2 at = Vector2Add(apex, Vector2Scale(direction, 28.0f));
 
         char text[8];
         PaceShortCall(corner, text, sizeof(text));
-        int width = MeasureText(text, 10);
-        int x = (int)Clamp(at.x - (float)width / 2.0f, 3.0f, (float)(PAPER_WIDTH - width - 3));
-        int y = (int)(at.y - 5.0f);
+        int width = TextWidth(text, MARK_SIZE);
+        int x = (int)Clamp(at.x - (float)width / 2.0f, 6.0f, (float)(PAPER_WIDTH - width - 6));
+        int y = (int)(at.y - (float)MARK_SIZE / 2.0f);
         Color ink = IsSlow(corner) ? COLOR_RED_INK : COLOR_INK;
         if (i == next)
         {
-            DrawRectangle(x - 2, y - 2, width + 4, 13, COLOR_PAPER);
-            DrawRectangleLines(x - 2, y - 2, width + 4, 13, ink);
+            Rectangle box = {(float)x - 5.0f, (float)y + 1.0f, (float)width + 8.0f, (float)MARK_SIZE - 2.0f};
+            DrawRectangleRec(box, COLOR_PAPER);
+            DrawRectangleLinesEx(box, 2.0f, ink);
         }
-        DrawText(text, x, y, 10, ink);
+        TextDraw(text, (float)x, (float)y, MARK_SIZE, ink);
     }
 }
 
@@ -163,16 +168,16 @@ static void DrawCar(const PaceMap *map, const Car *car, Vector2 center)
     float angle = car->heading - map->heading; // 0 points to the top of the paper
     Vector2 forward = {sinf(angle), -cosf(angle)};
     Vector2 right = {-forward.y, forward.x};
-    Vector2 tip = Vector2Add(at, Vector2Scale(forward, 5.0f));
-    Vector2 left_back = Vector2Subtract(Vector2Subtract(at, Vector2Scale(forward, 3.0f)), Vector2Scale(right, 3.5f));
-    Vector2 right_back = Vector2Add(Vector2Subtract(at, Vector2Scale(forward, 3.0f)), Vector2Scale(right, 3.5f));
+    Vector2 tip = Vector2Add(at, Vector2Scale(forward, 10.0f));
+    Vector2 left_back = Vector2Subtract(Vector2Subtract(at, Vector2Scale(forward, 6.0f)), Vector2Scale(right, 7.0f));
+    Vector2 right_back = Vector2Add(Vector2Subtract(at, Vector2Scale(forward, 6.0f)), Vector2Scale(right, 7.0f));
     DrawTriangle(tip, left_back, right_back, COLOR_CAR);
     DrawTriangle(tip, right_back, left_back, COLOR_CAR);
 }
 
 static void DrawCentered(const char *text, int y, int size, Color color)
 {
-    DrawText(text, (PAPER_WIDTH - MeasureText(text, size)) / 2, y, size, color);
+    TextDrawCentered(text, PAPER_WIDTH / 2.0f, (float)y, size, color);
 }
 
 static void DrawNextCorner(const Track *track, const PaceNotes *notes, int next,
@@ -180,20 +185,20 @@ static void DrawNextCorner(const Track *track, const PaceNotes *notes, int next,
 {
     int top = PAPER_HEIGHT - NOTE_HEIGHT;
     DrawRectangle(0, top, PAPER_WIDTH, NOTE_HEIGHT, COLOR_PAPER);
-    DrawLine(4, top, PAPER_WIDTH - 4, top, COLOR_INK);
+    DrawLineEx((Vector2){8, (float)top}, (Vector2){PAPER_WIDTH - 8, (float)top}, 2.0f, COLOR_INK);
     if (next < 0)
     {
-        DrawCentered("FINISH", top + 26, 20, COLOR_INK);
+        DrawCentered("FINISH", top + 40, CALL_SIZE, COLOR_INK);
         return;
     }
 
     const PaceCorner *corner = &notes->corners[next];
     Color ink = IsSlow(corner) ? COLOR_RED_INK : COLOR_INK;
-    DrawCentered(PaceGradeWord(corner), top + 5, 20, ink);
-    DrawCentered(PaceSideWord(corner), top + 26, 20, ink);
+    DrawCentered(PaceGradeWord(corner), top + 2, CALL_SIZE, ink);
+    DrawCentered(PaceSideWord(corner), top + 44, CALL_SIZE, ink);
 
     int meters = (int)(distance / MAP_PIXELS_PER_METER / 10.0f + 0.5f) * 10;
-    DrawCentered(TextFormat("in %d m", meters < 10 ? 10 : meters), top + 49, 10, COLOR_INK);
+    DrawCentered(TextFormat("in %d m", meters < 10 ? 10 : meters), top + 94, NOTE_SIZE, COLOR_INK);
 
     int following = next + 1 < notes->count ? next + 1 : (track->closed ? 0 : -1);
     float gap = following >= 0 ? notes->corners[following].entry - corner->end : INFINITY;
@@ -205,7 +210,7 @@ static void DrawNextCorner(const Track *track, const PaceNotes *notes, int next,
     {
         char into[32];
         PaceCall(&notes->corners[following], into, sizeof(into));
-        DrawCentered(TextFormat("into %s", into), top + 61, 10, COLOR_INK);
+        DrawCentered(TextFormat("into %s", into), top + 118, NOTE_SIZE, COLOR_INK);
     }
 }
 
@@ -217,13 +222,13 @@ static void RenderPaper(PaceMap *map, const Track *track, const PaceNotes *notes
 
     BeginTextureMode(map->paper);
     ClearBackground(COLOR_PAPER);
-    DrawLine(PAPER_WIDTH / 2, 0, PAPER_WIDTH / 2, PAPER_HEIGHT, COLOR_PAPER_DARK); // the fold
-    DrawLine(0, PAPER_HEIGHT / 3, PAPER_WIDTH, PAPER_HEIGHT / 3, COLOR_PAPER_DARK);
+    DrawRectangle(PAPER_WIDTH / 2 - 1, 0, 2, PAPER_HEIGHT, COLOR_PAPER_DARK); // the folds
+    DrawRectangle(0, PAPER_HEIGHT / 3 - 1, PAPER_WIDTH, 2, COLOR_PAPER_DARK);
     DrawRoad(map, track, center);
     DrawCornerNotes(map, track, notes, center, next);
     DrawCar(map, car, center);
     DrawNextCorner(track, notes, next, distance);
-    DrawRectangleLines(0, 0, PAPER_WIDTH, PAPER_HEIGHT, COLOR_PAPER_DARK);
+    DrawRectangleLinesEx((Rectangle){0, 0, PAPER_WIDTH, PAPER_HEIGHT}, 2.0f, COLOR_PAPER_DARK);
     EndTextureMode();
 }
 
@@ -288,10 +293,26 @@ static void RenderView(PaceMap *map, float head_yaw, float head_pitch)
     EndTextureMode();
 }
 
+// Return true when a part of the map can be in the view
+// The angle from the middle of the view to its corner is compared with the angle from the middle of the map to its corner
+static bool IsVisible(float head_yaw, float head_pitch)
+{
+    float half_width = tanf(VIEW_HFOV_DEG * 0.5f * DEG2RAD);
+    float half_height = half_width * VIEW_HEIGHT / VIEW_WIDTH;
+    float view_corner = atanf(sqrtf(half_width * half_width + half_height * half_height));
+    float map_half_width = HOLD_WIDTH / 2.0f;
+    float map_half_height = map_half_width * PAPER_HEIGHT / PAPER_WIDTH;
+    float map_corner = atanf(sqrtf(map_half_width * map_half_width + map_half_height * map_half_height) / HOLD_DISTANCE);
+    float angle = acosf(Clamp(Vector3DotProduct(Direction(head_yaw, -head_pitch),
+                                                Direction(HOLD_YAW_DEG, HOLD_ELEVATION_DEG)),
+                              -1.0f, 1.0f));
+    return angle < view_corner + map_corner + VISIBLE_MARGIN_DEG * DEG2RAD;
+}
+
 void PaceMapRender(PaceMap *map, const Track *track, const PaceNotes *notes, const Car *car,
                    float head_yaw, float head_pitch)
 {
-    map->visible = fabsf(head_yaw - HOLD_YAW_DEG) < VIEW_HFOV_DEG / 2.0f + VISIBLE_MARGIN_DEG;
+    map->visible = IsVisible(head_yaw, head_pitch);
     if (!map->visible)
     {
         return;

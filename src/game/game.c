@@ -30,6 +30,8 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
     game->mode = options->mode;
     game->crash_time = -1.0f;
     game->mouse_ignore = options->screenshot != NULL;
+    game->show_hud = true;
+    game->mouse_sensitivity = 1.0f;
 
     char name[LEVEL_MAX_NAME];
     if (options->level != NULL)
@@ -127,14 +129,11 @@ void GameShutdown(Game *game)
 
 void GameUpdate(Game *game, float dt)
 {
-    if (IsKeyPressed(KEY_F) || IsKeyPressed(KEY_F11))
-    {
-        ToggleBorderlessWindowed();
-    }
-
     // The first movement after the cursor is hidden can be a large jump
     bool use_mouse = game->mouse_ready && !game->mouse_ignore;
     Vector2 mouse = use_mouse ? GetMouseDelta() : (Vector2){0.0f, 0.0f};
+    mouse.x *= game->mouse_sensitivity;
+    mouse.y *= game->mouse_sensitivity * (game->invert_look ? -1.0f : 1.0f);
     game->mouse_ready = true;
 
     if (game->mode == GAME_MODE_DEBUG_FLY)
@@ -151,7 +150,7 @@ void GameUpdate(Game *game, float dt)
     if (crashed)
     {
         game->crash_time += dt;
-        if (game->crash_time >= CRASH_FADE_SECONDS + CRASH_BLACK_SECONDS)
+        if (GameCrashOver(game) && !game->crash_menu)
         {
             RestartStage(game, true);
         }
@@ -188,7 +187,22 @@ void GameUpdate(Game *game, float dt)
     HeadCameraUpdate(&game->head, mouse.x, mouse.y);
 }
 
-void GameDraw(Game *game)
+void GameRestart(Game *game)
+{
+    RestartStage(game, true);
+}
+
+void GameResume(Game *game)
+{
+    game->mouse_ready = false;
+}
+
+bool GameCrashOver(const Game *game)
+{
+    return game->crash_time >= CRASH_FADE_SECONDS + CRASH_BLACK_SECONDS;
+}
+
+void GameRender(Game *game)
 {
     bool fly = game->mode == GAME_MODE_DEBUG_FLY;
 
@@ -206,17 +220,21 @@ void GameDraw(Game *game)
         PaceMapRender(&game->map, &game->track, &game->notes, &game->car, game->head.yaw,
                       game->head.pitch);
     }
+}
 
-    Rectangle destination = PresentDestination(GetScreenWidth(), GetScreenHeight());
-    BeginDrawing();
-    ClearBackground(BLACK);
+void GameDrawView(const Game *game, Rectangle destination)
+{
+    bool fly = game->mode == GAME_MODE_DEBUG_FLY;
     Mode7Draw(&game->mode7, destination);
     if (!fly)
     {
         CockpitDraw(&game->cockpit, destination, game->head.yaw, game->head.pitch,
                     game->car.steer);
         PaceMapDraw(&game->map, destination);
-        HudDraw(&game->car, game->mode == GAME_MODE_NORMAL ? &game->stage : NULL, destination);
+        if (game->show_hud)
+        {
+            HudDraw(&game->car, game->mode == GAME_MODE_NORMAL ? &game->stage : NULL, destination);
+        }
     }
     float black = game->fade_in / RESTART_FADE_SECONDS;
     if (game->crash_time >= 0.0f)
@@ -227,5 +245,4 @@ void GameDraw(Game *game)
     {
         DrawRectangleRec(destination, Fade(BLACK, black));
     }
-    EndDrawing();
 }

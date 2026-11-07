@@ -25,6 +25,10 @@ bool OptionsParse(Options *options, int argc, char **argv, char *message, size_t
         {
             options->screenshot = argv[++i];
         }
+        else if (has_value && strcmp(argv[i], "--screen") == 0)
+        {
+            options->screen = argv[++i];
+        }
         else if (has_value && strcmp(argv[i], "--skip") == 0)
         {
             options->skip_seconds = (float)atof(argv[++i]);

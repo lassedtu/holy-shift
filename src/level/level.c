@@ -58,6 +58,31 @@ bool LevelFindFirst(char *name, size_t size)
     return found;
 }
 
+int LevelFindAll(char names[][LEVEL_MAX_NAME], int max)
+{
+    int count = 0;
+    FilePathList files = LoadDirectoryFiles(LEVELS_DIR);
+    for (unsigned int i = 0; i < files.count && count < max; i++)
+    {
+        if (!DirectoryExists(files.paths[i]) || !FileExists(TextFormat("%s/%s", files.paths[i], LEVEL_FILE)))
+        {
+            continue;
+        }
+        // Put the name in alphabetical order among the names found before
+        const char *entry = GetFileName(files.paths[i]);
+        int at = count;
+        while (at > 0 && strcmp(names[at - 1], entry) > 0)
+        {
+            snprintf(names[at], LEVEL_MAX_NAME, "%s", names[at - 1]);
+            at--;
+        }
+        snprintf(names[at], LEVEL_MAX_NAME, "%s", entry);
+        count++;
+    }
+    UnloadDirectoryFiles(files);
+    return count;
+}
+
 int LevelTreeVariants(const Level *level, char names[TREE_MAX_VARIANTS][TREE_VARIANT_NAME_MAX])
 {
     int count = 0;
