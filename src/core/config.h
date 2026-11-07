@@ -24,7 +24,7 @@
 #define SHADER_COCKPIT_PATH "src/render/shaders/cockpit.fs"
 #define SHADER_TREES_PATH "src/render/shaders/trees.fs"
 #define SHADER_SHADOW_PATH "src/render/shaders/shadow.fs"
-#define TREE_SHEET_DIR "assets/trees" // the pictures of the trees, see level/tree_species.h
+#define TREE_SHEET_DIR "assets/trees"                       // the pictures of the trees, see level/tree_species.h
 #define SOUND_SCREECH_PATH "assets/sounds/tire_screech.wav" // made by scripts/screech_loop.py
 #define SOUND_GEAR_PATH "assets/sounds/gear_change.wav"     // made by scripts/sound_clips.py
 #define SOUND_CRASH_PATH "assets/sounds/crash.wav"          // made by scripts/sound_clips.py
@@ -49,17 +49,17 @@
 #define TREE_VIEW_MARGIN 200.0f       // trees this close to the edge of the view are still looked at
 #define TREE_SCALE_MIN 0.85f          // each tree has a random scale between these values
 #define TREE_SCALE_MAX 1.2f
-#define TREE_SIGHT_HEIGHT 0.2f   // the picture of a tree shows it as seen at this part of its height
-#define TREE_SHADOW_RADIUS 0.13f // radius of the shadow on the ground under a tree, as part of the height of the tree
-#define TREE_SHADOW_SOLID 0.25f  // part of the radius of the shadow that is full of dots, outside of it the dots get fewer
-#define TREE_SHADOW_ALPHA 0.3f   // opacity of the dots of the shadow
+#define TREE_SIGHT_HEIGHT 0.2f     // the picture of a tree shows it as seen at this part of its height
+#define TREE_SHADOW_RADIUS 0.13f   // radius of the shadow on the ground under a tree, as part of the height of the tree
+#define TREE_SHADOW_SOLID 0.25f    // part of the radius of the shadow that is full of dots, outside of it the dots get fewer
+#define TREE_SHADOW_ALPHA 0.3f     // opacity of the dots of the shadow
 #define TREE_MAX_LOOK_UP_DEG 10.0f // no picture looks up more than this, the trees are never very near
-#define TREE_NEAR 6.0f           // trees closer than this to the camera are not drawn
-#define TREE_TRUNK_RADIUS 3.5f   // radius of a trunk for crashes, in map pixels at a scale of 1
-#define CAR_LENGTH 28.0f         // size of the box of the car for crashes, in map pixels
+#define TREE_NEAR 6.0f             // trees closer than this to the camera are not drawn
+#define TREE_TRUNK_RADIUS 3.5f     // radius of a trunk for crashes, in map pixels at a scale of 1
+#define CAR_LENGTH 28.0f           // size of the box of the car for crashes, in map pixels
 #define CAR_WIDTH 12.0f
-#define CAR_EYE_BACK 1.0f        // the eye of the driver is this far behind the centre of the car
-#define CAR_EYE_LEFT 3.0f        // the eye of the driver is this far left of the centre of the car
+#define CAR_EYE_BACK 1.0f // the eye of the driver is this far behind the centre of the car
+#define CAR_EYE_LEFT 3.0f // the eye of the driver is this far left of the centre of the car
 #define FOREST_SEED 1234u
 #define FOREST_ROAD_MARGIN 14.0f // free space between the road edge and the nearest trunk
 #define FOREST_SPACING 26.0f     // size of the squares that get one tree each

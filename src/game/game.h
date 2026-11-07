@@ -17,10 +17,12 @@
 #include "level/forest.h"
 #include "level/level.h"
 #include "level/level_textures.h"
+#include "level/pace_notes.h"
 #include "level/surface.h"
 #include "level/track.h"
 #include "render/cockpit.h"
 #include "render/mode7.h"
+#include "render/pace_map.h"
 #include "render/trees.h"
 
 // Everything of the running game
@@ -37,6 +39,7 @@ typedef struct Game
     LevelTextures textures;
     SurfaceMap surface;
     Stage stage;
+    PaceNotes notes;
 
     Car car;
     CarDriver *driver; // who moves the car, NULL when nobody moves it
@@ -53,6 +56,7 @@ typedef struct Game
     Mode7 mode7;
     Trees trees;
     Cockpit cockpit;
+    PaceMap map;
     CarAudio audio;
 } Game;
 

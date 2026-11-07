@@ -10,14 +10,15 @@
 #include "ui/hud.h"
 
 #define SIMULATION_STEP (1.0f / 60.0f)
-#define CRASH_FADE_SECONDS 0.35f   // the view fades to black after a crash
-#define CRASH_BLACK_SECONDS 0.6f   // the view stays black before the stage starts again
-#define RESTART_FADE_SECONDS 0.5f  // the view fades in after the stage starts again
+#define CRASH_FADE_SECONDS 0.35f  // the view fades to black after a crash
+#define CRASH_BLACK_SECONDS 0.6f  // the view stays black before the stage starts again
+#define RESTART_FADE_SECONDS 0.5f // the view fades in after the stage starts again
 
 static void RestartStage(Game *game, bool fade)
 {
     PlayerDriverInit(&game->player_driver, &game->surface, &game->track, &game->car);
     StageStart(&game->stage, &game->track);
+    PaceMapReset(&game->map, &game->track, &game->car);
     game->crash_time = -1.0f;
     game->fade_in = fade ? RESTART_FADE_SECONDS : 0.0f;
     CarAudioSetPlaying(&game->audio, true);
@@ -51,6 +52,8 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
         return false;
     }
 
+    PaceNotesBuild(&game->notes, &game->track);
+
     if (!ForestBuild(&game->forest, &game->level, &game->track))
     {
         snprintf(message, size, "Could not place the trees for \"%s\"", name);
@@ -63,6 +66,11 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
                   Mode7Init(&game->mode7, message, size) &&
                   TreesInit(&game->trees, &game->level, message, size) &&
                   CockpitLoad(&game->cockpit, message, size);
+    if (loaded && !PaceMapInit(&game->map))
+    {
+        snprintf(message, size, "Could not make the textures of the map");
+        loaded = false;
+    }
     if (!loaded)
     {
         GameShutdown(game);
@@ -95,6 +103,7 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
     {
         game->head.pitch = Clamp(options->pitch_deg, game->head.pitch_min, game->head.pitch_max);
     }
+    PaceMapReset(&game->map, &game->track, &game->car);
     CarAudioInit(&game->audio, &game->car);
     CarAudioSetPlaying(&game->audio, game->mode != GAME_MODE_DEBUG_FLY);
 
@@ -106,6 +115,7 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
 void GameShutdown(Game *game)
 {
     CarAudioUnload(&game->audio);
+    PaceMapUnload(&game->map);
     CockpitUnload(&game->cockpit);
     TreesUnload(&game->trees);
     Mode7Unload(&game->mode7);
@@ -173,6 +183,7 @@ void GameUpdate(Game *game, float dt)
             CarAudioCrash(&game->audio);
         }
     }
+    PaceMapUpdate(&game->map, &game->track, &game->car, dt);
     CarAudioUpdate(&game->audio, &game->car, SurfaceAt(&game->surface, game->car.position));
     HeadCameraUpdate(&game->head, mouse.x, mouse.y);
 }
@@ -190,6 +201,11 @@ void GameDraw(Game *game)
     }
     Mode7Render(&game->mode7, game->textures.visual, camera);
     TreesRender(&game->trees, &game->forest, game->mode7.target, camera);
+    if (!fly)
+    {
+        PaceMapRender(&game->map, &game->track, &game->notes, &game->car, game->head.yaw,
+                      game->head.pitch);
+    }
 
     Rectangle destination = PresentDestination(GetScreenWidth(), GetScreenHeight());
     BeginDrawing();
@@ -199,6 +215,7 @@ void GameDraw(Game *game)
     {
         CockpitDraw(&game->cockpit, destination, game->head.yaw, game->head.pitch,
                     game->car.steer);
+        PaceMapDraw(&game->map, destination);
         HudDraw(&game->car, game->mode == GAME_MODE_NORMAL ? &game->stage : NULL, destination);
     }
     float black = game->fade_in / RESTART_FADE_SECONDS;
