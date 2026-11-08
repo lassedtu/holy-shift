@@ -3,43 +3,76 @@
 #include <stdio.h>
 
 #include "core/config.h"
+#include "level/ground.h"
 
-// The level texture is not made yet, so the visual texture is the logic texture
-// Load LEVEL_TEXTURE_FILE here when the level texture exists
-static bool LoadVisualTexture(LevelTextures *textures, const Level *level)
+static void SetPixelLook(Texture2D texture)
 {
-    (void)level;
-    textures->visual = textures->logic;
-    textures->visual_is_logic = true;
+    SetTextureFilter(texture, TEXTURE_FILTER_POINT);
+    SetTextureWrap(texture, TEXTURE_WRAP_CLAMP);
+}
+
+// Use the level texture when the folder has one, so a texture painted by hand takes the place of the painted ground
+static bool LoadVisualTexture(LevelTextures *textures, const Level *level, const Image *logic,
+                              const Forest *forest)
+{
+    char path[256];
+    LevelFilePath(level, LEVEL_TEXTURE_FILE, path, sizeof(path));
+    if (FileExists(path))
+    {
+        textures->visual = LoadTexture(path);
+    }
+    else
+    {
+        Image ground = GroundPaint(logic, level, forest);
+        if (ground.data == NULL)
+        {
+            return false;
+        }
+        textures->visual = LoadTextureFromImage(ground);
+        UnloadImage(ground);
+    }
+    if (!IsTextureValid(textures->visual))
+    {
+        return false;
+    }
+    SetPixelLook(textures->visual);
     return true;
 }
 
-bool LevelTexturesLoad(LevelTextures *textures, const Level *level, char *message, size_t size)
+bool LevelTexturesLoad(LevelTextures *textures, const Level *level, const Forest *forest, char *message,
+                       size_t size)
 {
     *textures = (LevelTextures){0};
 
     char path[256];
     LevelFilePath(level, LEVEL_LOGIC_FILE, path, sizeof(path));
-    textures->logic = LoadTexture(path);
-    if (!IsTextureValid(textures->logic))
+    Image logic = LoadImage(path);
+    if (logic.data == NULL)
     {
         snprintf(message, size, "Could not load %s", path);
         return false;
     }
-    if (textures->logic.width != level->map_width || textures->logic.height != level->map_height)
+    if (logic.width != level->map_width || logic.height != level->map_height)
     {
-        snprintf(message, size, "%s has size %dx%d, the level file says %dx%d", path,
-                 textures->logic.width, textures->logic.height, level->map_width,
-                 level->map_height);
-        LevelTexturesUnload(textures);
+        snprintf(message, size, "%s has size %dx%d, the level file says %dx%d", path, logic.width, logic.height,
+                 level->map_width, level->map_height);
+        UnloadImage(logic);
         return false;
     }
-    SetTextureFilter(textures->logic, TEXTURE_FILTER_POINT);
-    SetTextureWrap(textures->logic, TEXTURE_WRAP_CLAMP);
-
-    if (!LoadVisualTexture(textures, level))
+    textures->logic = LoadTextureFromImage(logic);
+    if (!IsTextureValid(textures->logic))
     {
-        snprintf(message, size, "Could not load the level texture of \"%s\"", level->name);
+        snprintf(message, size, "Could not load %s", path);
+        UnloadImage(logic);
+        return false;
+    }
+    SetPixelLook(textures->logic);
+
+    bool loaded = LoadVisualTexture(textures, level, &logic, forest);
+    UnloadImage(logic);
+    if (!loaded)
+    {
+        snprintf(message, size, "Could not make the level texture of \"%s\"", level->name);
         LevelTexturesUnload(textures);
         return false;
     }
@@ -48,7 +81,7 @@ bool LevelTexturesLoad(LevelTextures *textures, const Level *level, char *messag
 
 void LevelTexturesUnload(LevelTextures *textures)
 {
-    if (!textures->visual_is_logic && IsTextureValid(textures->visual))
+    if (IsTextureValid(textures->visual))
     {
         UnloadTexture(textures->visual);
     }

@@ -13,6 +13,7 @@
 //   Open button             : load levels/<name>/level.json for editing
 //   Tree buttons            : choose the species of trees around the road
 //   Road slider             : drag to set the width of the road
+//   Theme button            : click to choose the look of the ground (forest, autumn, mud, lakeside)
 //
 // Run from the project root:
 //   make -C level-builder run
@@ -22,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "level/ground_theme.h"
 #include "level/tree_species.h"
 #include "raylib.h"
 #include "raymath.h"
@@ -70,6 +72,7 @@ typedef struct
     int time_count;
     bool jelka_just_ahead;
     bool trees[TREE_SPECIES_COUNT]; // the species of trees around the road
+    GroundTheme theme;              // the look of the ground in the game
     int road_width; // map pixels
 } Level;
 
@@ -239,6 +242,7 @@ static bool ExportLevel(const Level *level, const char *name, char *message,
     {
         fprintf(file, "  \"jelka_just_ahead\": true,\n");
     }
+    fprintf(file, "  \"theme\": \"%s\",\n", GROUND_THEME_NAMES[level->theme]);
     if (level->time_count > 0)
     {
         fprintf(file, "  \"times\": [");
@@ -381,6 +385,13 @@ static bool LoadLevel(const char *name, Level *level, char *message,
     const char *closed = FindKey(text, "closed");
     const char *tutorial = FindKey(text, "tutorial");
     loaded.tutorial = tutorial != NULL && strncmp(SkipTo(tutorial, ""), "true", 4) == 0;
+    const char *theme = FindKey(text, "theme");
+    if (theme != NULL && *SkipTo(theme, "") == '"')
+    {
+        char theme_name[32] = "";
+        sscanf(SkipTo(theme, "") + 1, "%31[^\"]", theme_name);
+        loaded.theme = GroundThemeFind(theme_name);
+    }
     const char *display = FindKey(text, "display_name");
     if (display != NULL && *SkipTo(display, "") == '"')
     {
@@ -528,16 +539,17 @@ int main(void)
 
     Rectangle export_button = {10, 6, 100, TOOLBAR_H - 12};
     Rectangle open_button = {120, 6, 80, TOOLBAR_H - 12};
-    Rectangle name_box = {210, 6, 220, TOOLBAR_H - 12};
+    Rectangle name_box = {210, 6, 150, TOOLBAR_H - 12};
     Rectangle tree_buttons[TREE_SPECIES_COUNT];
     for (int i = 0; i < TREE_SPECIES_COUNT; i++)
     {
-        tree_buttons[i] = (Rectangle){440.0f + (float)i * 76.0f, 6, 72, TOOLBAR_H - 12};
+        tree_buttons[i] = (Rectangle){370.0f + (float)i * 76.0f, 6, 72, TOOLBAR_H - 12};
     }
-    float road_x = 440.0f + TREE_SPECIES_COUNT * 76.0f + 8.0f;
+    float road_x = 370.0f + TREE_SPECIES_COUNT * 76.0f + 8.0f;
     Rectangle road_slider = {road_x + 115.0f, 6, 120, TOOLBAR_H - 12}; // the area that takes clicks
-    Rectangle display_box = {road_slider.x + road_slider.width + 10.0f, 6, 170, TOOLBAR_H - 12};
+    Rectangle display_box = {road_slider.x + road_slider.width + 10.0f, 6, 140, TOOLBAR_H - 12};
     Rectangle tutorial_box = {display_box.x + display_box.width + 10.0f, 6, 90, TOOLBAR_H - 12};
+    Rectangle theme_button = {tutorial_box.x + tutorial_box.width + 10.0f, 6, 95, TOOLBAR_H - 12};
     bool display_focus = false;
     bool road_drag = false;
     char name[MAX_NAME + 1] = "level1";
@@ -705,6 +717,11 @@ int main(void)
                 PushUndo(&level);
                 level.tutorial = !level.tutorial;
             }
+            else if (CheckCollisionPointRec(mouse, theme_button))
+            {
+                PushUndo(&level);
+                level.theme = (GroundTheme)((level.theme + 1) % GROUND_THEME_COUNT);
+            }
             else if (CheckCollisionPointRec(mouse, export_button))
             {
                 ExportLevel(&level, name, message, sizeof(message));
@@ -861,6 +878,11 @@ int main(void)
             DrawRectangle((int)check.x + 4, (int)check.y + 4, 6, 6, YELLOW);
         }
         DrawText("Tutorial", (int)check.x + 20, (int)tutorial_box.y + 6, 18, WHITE);
+        bool over_theme = CheckCollisionPointRec(mouse, theme_button);
+        DrawRectangleRec(theme_button, over_theme ? (Color){90, 90, 90, 255} : (Color){60, 60, 60, 255});
+        const char *theme_label = GROUND_THEME_NAMES[level.theme];
+        DrawText(theme_label, (int)(theme_button.x + (theme_button.width - (float)MeasureText(theme_label, 18)) / 2.0f),
+                 (int)theme_button.y + 6, 18, WHITE);
         for (int i = 0; i < TREE_SPECIES_COUNT; i++)
         {
             bool over_tree = CheckCollisionPointRec(mouse, tree_buttons[i]);

@@ -38,24 +38,13 @@ void LevelListNames(char *list, size_t size)
 
 bool LevelFindFirst(char *name, size_t size)
 {
-    bool found = false;
-    FilePathList files = LoadDirectoryFiles(LEVELS_DIR);
-    for (unsigned int i = 0; i < files.count; i++)
+    char all[LEVEL_MAX_ORDERED][LEVEL_MAX_NAME];
+    if (LevelFindAll(all, LEVEL_MAX_ORDERED) == 0)
     {
-        const char *entry = GetFileName(files.paths[i]);
-        if (!DirectoryExists(files.paths[i]) ||
-            !FileExists(TextFormat("%s/%s", files.paths[i], LEVEL_FILE)))
-        {
-            continue;
-        }
-        if (!found || strcmp(entry, name) < 0)
-        {
-            snprintf(name, size, "%s", entry);
-            found = true;
-        }
+        return false;
     }
-    UnloadDirectoryFiles(files);
-    return found;
+    snprintf(name, size, "%s", all[0]);
+    return true;
 }
 
 void LevelReadDisplayName(const char *name, char *display_name, int size)
@@ -71,6 +60,48 @@ void LevelReadDisplayName(const char *name, char *display_name, int size)
     if (JsonReadString(text, "display_name", found, sizeof(found)) && found[0] != '\0')
     {
         snprintf(display_name, (size_t)size, "%s", found);
+    }
+    UnloadFileText(text);
+}
+
+// Move the levels in LEVEL_ORDER_PATH to the front of the list, in the order of the file
+// Each line of the file is the folder name of a level, a line that starts with # is a comment
+static void ApplyOrder(char names[][LEVEL_MAX_NAME], int count)
+{
+    char *text = FileExists(LEVEL_ORDER_PATH) ? LoadFileText(LEVEL_ORDER_PATH) : NULL;
+    if (text == NULL)
+    {
+        return;
+    }
+    int placed = 0;
+    char *line = text;
+    while (line != NULL && *line != '\0' && placed < count)
+    {
+        char *next = strchr(line, '\n');
+        if (next != NULL)
+        {
+            *next++ = '\0';
+        }
+        char entry[LEVEL_MAX_NAME];
+        if (line[0] != '#' && sscanf(line, "%63s", entry) == 1)
+        {
+            for (int i = placed; i < count; i++)
+            {
+                if (strcmp(names[i], entry) == 0)
+                {
+                    // Move the level to the next place and keep the order of the levels between
+                    char moved[LEVEL_MAX_NAME];
+                    snprintf(moved, sizeof(moved), "%s", names[i]);
+                    for (int k = i; k > placed; k--)
+                    {
+                        snprintf(names[k], LEVEL_MAX_NAME, "%s", names[k - 1]);
+                    }
+                    snprintf(names[placed++], LEVEL_MAX_NAME, "%s", moved);
+                    break;
+                }
+            }
+        }
+        line = next;
     }
     UnloadFileText(text);
 }
@@ -97,6 +128,7 @@ int LevelFindAll(char names[][LEVEL_MAX_NAME], int max)
         count++;
     }
     UnloadDirectoryFiles(files);
+    ApplyOrder(names, count);
     return count;
 }
 
@@ -206,6 +238,8 @@ bool LevelLoad(Level *level, const char *name, char *message, size_t size)
         snprintf(loaded.display_name, sizeof(loaded.display_name), "%s", name);
     }
     JsonReadBool(text, "jelka_just_ahead", &loaded.jelka_just_ahead);
+    char theme[32];
+    loaded.ground_theme = JsonReadString(text, "theme", theme, sizeof(theme)) ? GroundThemeFind(theme) : GROUND_FOREST;
     int times = JsonReadNumberArray(text, "times", loaded.times, LEVEL_RIVALS);
     loaded.time_count = times > 0 ? times : 0;
 

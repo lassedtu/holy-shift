@@ -18,19 +18,19 @@ scene 00_intro
 stage village_road        # 0: village_road, the tutorial, day
 
 scene 01_club_rally
-stage club_rally        # 1: club_rally, the map, day
+stage club_rally          # 1: club_rally, the map, day
 
 scene 02_glory_days
-stage village_road        # 2: forest, map events start (the sick bag), overcast
+stage forrest_stage       # 2: forest, map events start (the sick bag), overcast
 
 scene 03_sick_bag
 scene 04_mud
-stage village_road        # 3: mud, the grip changes, rain
+stage mud_stage           # 3: mud, the grip changes, rain
 
 scene 05_night_talk
-stage village_road        # 4: night, a light for the map, night
+stage night_stage         # 4: night, a light for the map, night
 
 scene 06_the_lake
-stage village_road        # 5: lake, the final, Rajka must win, dusk
+stage lake_stage          # 5: lake, the final, Rajka must win, dusk
 
 scene 07_ending

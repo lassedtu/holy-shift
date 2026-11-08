@@ -64,7 +64,7 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
         return false;
     }
 
-    bool loaded = LevelTexturesLoad(&game->textures, &game->level, message, size) &&
+    bool loaded = LevelTexturesLoad(&game->textures, &game->level, &game->forest, message, size) &&
                   SurfaceMapLoad(&game->surface, &game->level, message, size) &&
                   Mode7Init(&game->mode7, message, size) &&
                   TreesInit(&game->trees, &game->level, message, size) &&

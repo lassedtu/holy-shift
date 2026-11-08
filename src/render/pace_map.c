@@ -20,7 +20,8 @@
 #define DRAW_AHEAD 900.0f // and this far ahead of the car
 #define DRAW_STEP 8.0f
 #define ROAD_MAX_POINTS ((int)((DRAW_BEHIND + DRAW_AHEAD) / DRAW_STEP) + 2)
-#define NEAREST_WINDOW 120.0f // the car cannot move more than this along the track in one frame
+#define NEAREST_BEHIND 120.0f // the car cannot move back more than this along the track in one frame
+#define NEAREST_AHEAD 600.0f  // the car can skip this much of the track when it cuts a corner over the grass
 #define HEADING_AHEAD 8.0f    // the top of the map points to the road this far ahead of the car
 #define HEADING_RATE 12.0f    // how fast the map turns to the road, only to smooth small steps
 #define INTO_DISTANCE 240.0f  // a corner that starts this near after the next corner is called with it
@@ -80,7 +81,7 @@ void PaceMapReset(PaceMap *map, const Track *track, const Car *car)
 void PaceMapUpdate(PaceMap *map, const Track *track, const Car *car, float dt)
 {
     map->time += dt;
-    map->position = TrackNearest(track, car->position, map->position, NEAREST_WINDOW);
+    map->position = TrackNearestAhead(track, car->position, map->position, NEAREST_BEHIND, NEAREST_AHEAD);
     float target = TrackHeading(track, map->position + HEADING_AHEAD);
     map->heading += AngleDifference(map->heading, target) * fminf(1.0f, HEADING_RATE * dt);
 }
@@ -162,9 +163,10 @@ static void DrawCornerNotes(const PaceMap *map, const Track *track, const PaceNo
     }
 }
 
+// The car is drawn on the line of the road at the nearest point, also when it is next to the road
 static void DrawCar(const PaceMap *map, const Car *car, Vector2 center)
 {
-    Vector2 at = ToPaper(map, center, car->position);
+    Vector2 at = ToPaper(map, center, center);
     float angle = car->heading - map->heading; // 0 points to the top of the paper
     Vector2 forward = {sinf(angle), -cosf(angle)};
     Vector2 right = {-forward.y, forward.x};

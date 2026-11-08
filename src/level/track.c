@@ -126,9 +126,14 @@ float TrackHeading(const Track *track, float position)
 
 float TrackNearest(const Track *track, Vector2 point, float around, float window)
 {
+    return TrackNearestAhead(track, point, around, window, window);
+}
+
+float TrackNearestAhead(const Track *track, Vector2 point, float around, float behind, float ahead)
+{
     float best = around;
     float best_distance = INFINITY;
-    for (float offset = -window; offset <= window; offset += CURVE_STEP)
+    for (float offset = -behind; offset <= ahead; offset += CURVE_STEP)
     {
         float distance = Vector2DistanceSqr(TrackPoint(track, around + offset), point);
         if (distance < best_distance)

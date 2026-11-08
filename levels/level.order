@@ -1,0 +1,13 @@
+# The order of the levels in free play: one folder name of levels/ on each line
+# The stages of the story come first, in the order of the story. Put extra levels after them.
+# A level that is not in this file is shown after these levels, in alphabetical order.
+
+# The story (see assets/story/story.order)
+village_road
+club_rally
+forrest_stage
+mud_stage
+night_stage
+lake_stage
+
+# Extra levels

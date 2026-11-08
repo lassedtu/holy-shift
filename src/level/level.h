@@ -4,11 +4,13 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "level/ground_theme.h"
 #include "level/tree_species.h"
 #include "raylib.h"
 
 #define LEVEL_MAX_POINTS 512
 #define LEVEL_MAX_NAME 64
+#define LEVEL_MAX_ORDERED 64 // most levels that LevelFindFirst looks at
 #define LEVEL_RIVALS 7 // the other drivers of a stage, see game/standings.h
 
 // The data of a level file (levels/<name>/level.json)
@@ -29,6 +31,7 @@ typedef struct Level
     int road_width;
     Color road_color;               // color of the road in the logic map
     bool trees[TREE_SPECIES_COUNT]; // the species of trees around the road
+    GroundTheme ground_theme;       // the look of the ground, GROUND_FOREST when the file has no theme
 } Level;
 
 // Load a level by its folder name, write the reason in message when it fails
@@ -40,13 +43,14 @@ int LevelTreeVariants(const Level *level, char names[TREE_MAX_VARIANTS][TREE_VAR
 // Write the path of a file in the folder of the level
 void LevelFilePath(const Level *level, const char *file, char *path, size_t size);
 
-// Write the name of the first saved level (in alphabetical order), return false if there is none
+// Write the name of the first saved level (the first in LevelFindAll), return false if there is none
 bool LevelFindFirst(char *name, size_t size);
 
 // Write the display name of a saved level, or its folder name when it has none
 void LevelReadDisplayName(const char *name, char *display_name, int size);
 
-// Write the names of the saved levels in alphabetical order, at most max names, return the count
+// Write the names of the saved levels, at most max names, return the count
+// The levels in LEVEL_ORDER_PATH come first in the order of the file, the other levels follow in alphabetical order
 int LevelFindAll(char names[][LEVEL_MAX_NAME], int max);
 
 // Write the names of all saved levels, separated by commas

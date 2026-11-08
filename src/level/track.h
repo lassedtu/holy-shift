@@ -32,6 +32,10 @@ float TrackHeading(const Track *track, float position);
 // Only the positions in a distance of window before and after the position around are examined
 float TrackNearest(const Track *track, Vector2 point, float around, float window);
 
+// Return the position on the track nearest to a point, from behind before the position around to ahead after it
+// A large distance ahead finds the road after a corner that the car cuts over the grass
+float TrackNearestAhead(const Track *track, Vector2 point, float around, float behind, float ahead);
+
 // Return the total turn (radians, always positive) of the track in a distance from a position
 float TrackTurnAhead(const Track *track, float position, float distance, float step);
 

@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "level/forest.h"
 #include "level/level.h"
 #include "raylib.h"
 
@@ -14,11 +15,13 @@ typedef struct LevelTextures
 {
     Texture2D logic;
     Texture2D visual;
-    bool visual_is_logic; // true while the visual texture is the logic texture
 } LevelTextures;
 
 // Load the textures of a level, write the reason in message when it fails
-bool LevelTexturesLoad(LevelTextures *textures, const Level *level, char *message, size_t size);
+// The visual texture is LEVEL_TEXTURE_FILE when the level has one, else it is painted from the logic map
+// The forest puts leaves under the trees of a painted texture, it can be NULL
+bool LevelTexturesLoad(LevelTextures *textures, const Level *level, const Forest *forest, char *message,
+                       size_t size);
 void LevelTexturesUnload(LevelTextures *textures);
 
 #endif

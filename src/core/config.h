@@ -15,6 +15,7 @@
 // Paths, relative to the folder where the game starts (the project root)
 #define LEVELS_DIR "levels"
 #define LEVEL_FILE "level.json"
+#define LEVEL_ORDER_PATH "levels/level.order" // the order of the levels in free play
 #define LEVEL_LOGIC_FILE "level_logic.png"
 #define LEVEL_TEXTURE_FILE "level_texture.png"
 #define COCKPIT_METRICS_PATH "assets/car_cockpit.json"
