@@ -10,6 +10,8 @@
 #define TEXT_SIZE 15
 #define COLOR_LABEL ((Color){60, 40, 24, 255})
 #define COLOR_LABEL_LIGHT ((Color){250, 236, 200, 255})
+#define LABEL_LARGE 27 // the label of a color button
+#define PLAIN_BRIGHTNESS 60 // the grey button is made lighter by this, so a tint gives a clear color
 
 static bool LoadImageTexture(Texture2D *texture, const char *name, char *message, size_t size)
 {
@@ -32,6 +34,21 @@ bool UiLoad(Ui *ui, char *message, size_t size)
                   LoadImageTexture(&ui->button_focus, "button_focus.png", message, size) &&
                   LoadImageTexture(&ui->button_pressed, "button_pressed.png", message, size) &&
                   LoadImageTexture(&ui->inlay, "inlay.png", message, size);
+    if (loaded)
+    {
+        // The light button without its color, a tint gives it a new color and keeps the shading
+        Image plain = LoadImage(TextFormat("%s/%s", UI_DIR, "button_focus.png"));
+        ImageColorGrayscale(&plain);
+        ImageColorBrightness(&plain, PLAIN_BRIGHTNESS);
+        ui->button_plain = LoadTextureFromImage(plain);
+        UnloadImage(plain);
+        SetTextureFilter(ui->button_plain, TEXTURE_FILTER_POINT);
+        loaded = IsTextureValid(ui->button_plain);
+        if (!loaded)
+        {
+            snprintf(message, size, "Could not make the colored button");
+        }
+    }
     if (!loaded)
     {
         UiUnload(ui);
@@ -41,7 +58,8 @@ bool UiLoad(Ui *ui, char *message, size_t size)
 
 void UiUnload(Ui *ui)
 {
-    Texture2D *textures[] = {&ui->panel, &ui->button, &ui->button_focus, &ui->button_pressed, &ui->inlay};
+    Texture2D *textures[] = {&ui->panel, &ui->button, &ui->button_focus, &ui->button_pressed, &ui->inlay,
+                             &ui->button_plain};
     for (size_t i = 0; i < sizeof(textures) / sizeof(textures[0]); i++)
     {
         if (IsTextureValid(*textures[i]))
@@ -107,7 +125,7 @@ void UiDim(const Ui *ui, float amount)
 }
 
 // Draw one part of a 9-slice image, repeated over an area so the pixels are not stretched
-static void DrawTiled(const Ui *ui, Texture2D texture, Rectangle source, Rectangle area)
+static void DrawTiled(const Ui *ui, Texture2D texture, Rectangle source, Rectangle area, Color tint)
 {
     for (float y = 0.0f; y < area.height; y += source.height)
     {
@@ -117,12 +135,12 @@ static void DrawTiled(const Ui *ui, Texture2D texture, Rectangle source, Rectang
             float w = fminf(source.width, area.width - x);
             Rectangle part = {source.x, source.y, w, h};
             Rectangle target = ToWindow(ui, (Rectangle){area.x + x, area.y + y, w, h});
-            DrawTexturePro(texture, part, target, (Vector2){0, 0}, 0.0f, WHITE);
+            DrawTexturePro(texture, part, target, (Vector2){0, 0}, 0.0f, tint);
         }
     }
 }
 
-static void DrawNineSlice(const Ui *ui, Texture2D texture, Rectangle rect)
+static void DrawNineSliceTinted(const Ui *ui, Texture2D texture, Rectangle rect, Color tint)
 {
     rect = (Rectangle){floorf(rect.x), floorf(rect.y), floorf(rect.width), floorf(rect.height)};
     float s = SLICE;
@@ -141,9 +159,14 @@ static void DrawNineSlice(const Ui *ui, Texture2D texture, Rectangle rect)
                 continue;
             }
             Rectangle source = {(float)column * s, (float)row * s, s, s};
-            DrawTiled(ui, texture, source, (Rectangle){xs[column], ys[row], ws[column], hs[row]});
+            DrawTiled(ui, texture, source, (Rectangle){xs[column], ys[row], ws[column], hs[row]}, tint);
         }
     }
+}
+
+static void DrawNineSlice(const Ui *ui, Texture2D texture, Rectangle rect)
+{
+    DrawNineSliceTinted(ui, texture, rect, WHITE);
 }
 
 void UiPanel(const Ui *ui, Rectangle rect)
@@ -233,6 +256,30 @@ bool UiButton(Ui *ui, Rectangle rect, const char *label)
     DrawButtonBack(ui, rect, focused);
     UiTextCentered(ui, label, rect.x + rect.width / 2.0f, TextTop(rect), TEXT_SIZE,
                    focused ? COLOR_LABEL : COLOR_LABEL_LIGHT);
+    return Clicked(ui, rect) || (focused && ui->select);
+}
+
+bool UiColorButton(Ui *ui, Rectangle rect, const char *label, const char *detail, Color color, Color ink)
+{
+    bool focused = Focus(ui, rect);
+    bool pressed = focused && IsMouseButtonDown(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(ui->mouse, rect);
+    // The button with the focus is lighter, so it also shows on a dark color
+    Color tint = pressed ? ColorBrightness(color, -0.2f) : (focused ? ColorBrightness(color, 0.12f) : color);
+    DrawNineSliceTinted(ui, ui->button_plain, rect, tint);
+    if (focused)
+    {
+        DrawRectangleLinesEx(ToWindow(ui, (Rectangle){rect.x - 2.0f, rect.y - 2.0f, rect.width + 4.0f,
+                                                      rect.height + 4.0f}),
+                             2.0f * ui->scale, COLOR_LABEL_LIGHT);
+    }
+    float label_height = UiTextHeight(ui, LABEL_LARGE);
+    float detail_height = UiTextHeight(ui, TEXT_SIZE);
+    // The font has empty space at the top and the bottom, so the two lines are a little closer than their heights
+    float total = (label_height + detail_height) * 0.8f;
+    float top = rect.y + (rect.height - total) / 2.0f - label_height * 0.12f;
+    float middle = rect.x + rect.width / 2.0f;
+    UiTextCentered(ui, label, middle, top, LABEL_LARGE, ink);
+    UiTextCentered(ui, detail, middle, top + label_height * 0.8f, TEXT_SIZE, ink);
     return Clicked(ui, rect) || (focused && ui->select);
 }
 

@@ -6,7 +6,7 @@
 
 bool OptionsParse(Options *options, int argc, char **argv, char *message, size_t size)
 {
-    *options = (Options){0};
+    *options = (Options){.difficulty = DIFFICULTY_MEDIUM};
     bool fly = false;
     bool selfdrive = false;
 
@@ -45,6 +45,24 @@ bool OptionsParse(Options *options, int argc, char **argv, char *message, size_t
         {
             options->pitch_deg = (float)atof(argv[++i]);
             options->has_pitch = true;
+        }
+        else if (has_value && strcmp(argv[i], "--difficulty") == 0)
+        {
+            const char *name = argv[++i];
+            options->has_difficulty = false;
+            for (int d = 0; d < DIFFICULTY_COUNT; d++)
+            {
+                if (strcmp(name, DIFFICULTY_RULES[d].name) == 0)
+                {
+                    options->difficulty = (Difficulty)d;
+                    options->has_difficulty = true;
+                }
+            }
+            if (!options->has_difficulty)
+            {
+                snprintf(message, size, "Unknown difficulty \"%s\", use easy, medium, hard or ultra", name);
+                return false;
+            }
         }
         else if (argv[i][0] != '-' && argv[i][0] != '\0')
         {

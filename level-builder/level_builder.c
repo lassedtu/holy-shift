@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "core/difficulty.h"
 #include "level/ground_theme.h"
 #include "level/tree_species.h"
 #include "raylib.h"
@@ -68,8 +69,8 @@ typedef struct
     bool closed;   // the last point connects to the first point
     bool tutorial; // the game shows the hints of the tutorial on this level
     char display_name[MAX_DISPLAY_NAME + 1]; // the name that the player sees, "" for the folder name
-    float times[MAX_RIVALS]; // seconds of the other drivers, kept as they are in the file
-    int time_count;
+    float times[DIFFICULTY_COUNT][MAX_RIVALS]; // seconds of the other drivers on each difficulty, kept as they are
+    int time_count[DIFFICULTY_COUNT];
     bool jelka_just_ahead;
     bool trees[TREE_SPECIES_COUNT]; // the species of trees around the road
     GroundTheme theme;              // the look of the ground in the game
@@ -243,12 +244,14 @@ static bool ExportLevel(const Level *level, const char *name, char *message,
         fprintf(file, "  \"jelka_just_ahead\": true,\n");
     }
     fprintf(file, "  \"theme\": \"%s\",\n", GROUND_THEME_NAMES[level->theme]);
-    if (level->time_count > 0)
+    for (int d = 0; d < DIFFICULTY_COUNT; d++)
     {
-        fprintf(file, "  \"times\": [");
-        for (int i = 0; i < level->time_count; i++)
+        if (level->time_count[d] == 0)
+            continue;
+        fprintf(file, "  \"%s\": [", DIFFICULTY_RULES[d].times_key);
+        for (int i = 0; i < level->time_count[d]; i++)
         {
-            fprintf(file, "%s%.2f", i > 0 ? ", " : "", level->times[i]);
+            fprintf(file, "%s%.2f", i > 0 ? ", " : "", level->times[d][i]);
         }
         fprintf(file, "],\n");
     }
@@ -406,11 +409,13 @@ static bool LoadLevel(const char *name, Level *level, char *message,
     }
     const char *ahead = FindKey(text, "jelka_just_ahead");
     loaded.jelka_just_ahead = ahead != NULL && strncmp(SkipTo(ahead, ""), "true", 4) == 0;
-    const char *times = FindKey(text, "times");
-    if (times != NULL && *SkipTo(times, "") == '[')
+    for (int d = 0; d < DIFFICULTY_COUNT; d++)
     {
+        const char *times = FindKey(text, DIFFICULTY_RULES[d].times_key);
+        if (times == NULL || *SkipTo(times, "") != '[')
+            continue;
         const char *position = SkipTo(times, "") + 1;
-        while (loaded.time_count < MAX_RIVALS)
+        while (loaded.time_count[d] < MAX_RIVALS)
         {
             char *end;
             float value = strtof(SkipTo(position, ","), &end);
@@ -418,7 +423,7 @@ static bool LoadLevel(const char *name, Level *level, char *message,
             {
                 break;
             }
-            loaded.times[loaded.time_count++] = value;
+            loaded.times[d][loaded.time_count[d]++] = value;
             position = end;
         }
     }

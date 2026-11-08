@@ -20,8 +20,9 @@ typedef struct LevelTextures
 // Load the textures of a level, write the reason in message when it fails
 // The visual texture is LEVEL_TEXTURE_FILE when the level has one, else it is painted from the logic map
 // The forest puts leaves under the trees of a painted texture, it can be NULL
-bool LevelTexturesLoad(LevelTextures *textures, const Level *level, const Forest *forest, char *message,
-                       size_t size);
+// The logic map comes from LogicMapLoad
+bool LevelTexturesLoad(LevelTextures *textures, const Level *level, const Image *logic, const Forest *forest,
+                       char *message, size_t size);
 void LevelTexturesUnload(LevelTextures *textures);
 
 #endif

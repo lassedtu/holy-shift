@@ -19,6 +19,7 @@ typedef struct Ui
     Texture2D button_focus;
     Texture2D button_pressed;
     Texture2D inlay;
+    Texture2D button_plain; // a grey button, for buttons with a color
 
     Rectangle area; // the area of the window for the game view
     float scale;    // window pixels for each game pixel
@@ -73,6 +74,9 @@ void UiTextCentered(const Ui *ui, const char *text, float x, float y, int size, 
 
 // Return true in the frame when the button is selected
 bool UiButton(Ui *ui, Rectangle rect, const char *label);
+
+// A button with a color, a large label and a line of detail under it, return true in the frame when it is selected
+bool UiColorButton(Ui *ui, Rectangle rect, const char *label, const char *detail, Color color, Color ink);
 
 // Return true when the value changes
 bool UiSlider(Ui *ui, Rectangle rect, const char *label, float *value, float min, float max, float step,

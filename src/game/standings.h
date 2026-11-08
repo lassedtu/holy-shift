@@ -21,9 +21,11 @@ typedef struct Standings
     int place; // the place of the player, 1 is the first place
 } Standings;
 
-// Make the standings of a level for a time of the player
-// The times of the other drivers come from the level, or are made from the length of the track (map pixels)
-void StandingsMake(Standings *standings, const Level *level, float track_length, float player_time);
+// Make the standings of a level for a time of the player on a difficulty
+// The times of the other drivers come from the times of the level for the difficulty. Without them, the times of
+// medium (or times made from the length of the track, in map pixels) are multiplied by the rival time of the difficulty
+void StandingsMake(Standings *standings, const Level *level, float track_length, float player_time,
+                   Difficulty difficulty);
 
 // Return "GOLD", "SILVER" or "BRONZE" for the first three places, NULL for the other places
 const char *StandingsMedal(int place);

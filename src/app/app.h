@@ -23,8 +23,17 @@ typedef enum Screen
     SCREEN_PAUSED,
     SCREEN_CRASHED,
     SCREEN_FINISHED,
-    SCREEN_SCENE // a scene of the story mode
+    SCREEN_SCENE,     // a scene of the story mode
+    SCREEN_STORY,     // continue the saved story or start a new story
+    SCREEN_DIFFICULTY // choose the difficulty for a new story or after a crash
 } Screen;
+
+// What happens after the player chooses a difficulty
+typedef enum DifficultyChoice
+{
+    CHOICE_NEW_STORY, // a new story starts, the saved story is lost
+    CHOICE_RETRY      // the stage starts again on the new difficulty
+} DifficultyChoice;
 
 // The whole program: the menus and the game behind them
 // Without a level name and without a debug mode on the command line, the program starts in the main menu
@@ -39,6 +48,8 @@ typedef struct App
 
     Screen screen;
     Screen settings_back; // the screen that the settings go back to
+    Screen difficulty_back; // the screen that the choice of the difficulty goes back to
+    DifficultyChoice difficulty_choice;
     bool screen_changed;  // true in the frame when the screen changed, so one key press does not act twice
     bool cursor_hidden;
     float menu_time;

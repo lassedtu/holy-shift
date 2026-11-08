@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "core/difficulty.h"
 #include "level/ground_theme.h"
 #include "level/tree_species.h"
 #include "raylib.h"
@@ -23,19 +24,24 @@ typedef struct Level
     int count;
     bool closed;               // the last point connects to the first point
     bool tutorial;             // the game shows the hints of the tutorial on this level
-    float times[LEVEL_RIVALS]; // seconds of the other drivers, in the order of game/standings.c
-    int time_count;            // 0 when the level file has no times, then the times are made from the length
+    float times[DIFFICULTY_COUNT][LEVEL_RIVALS]; // seconds of the other drivers on each difficulty, in the order of
+                                                 // game/standings.c
+    int time_count[DIFFICULTY_COUNT];            // 0 when the level file has no times for a difficulty
     bool jelka_just_ahead;     // Jelka's time is always 1 second less than the time of the player
     int map_width;
     int map_height;
     int road_width;
     Color road_color;               // color of the road in the logic map
+    Color outside_color;            // color of the ground next to the road in the logic map
     bool trees[TREE_SPECIES_COUNT]; // the species of trees around the road
     GroundTheme ground_theme;       // the look of the ground, GROUND_FOREST when the file has no theme
 } Level;
 
 // Load a level by its folder name, write the reason in message when it fails
 bool LevelLoad(Level *level, const char *name, char *message, size_t size);
+
+// Change the road width of a loaded level for a difficulty
+void LevelApplyDifficulty(Level *level, Difficulty difficulty);
 
 // Write the names of the variants of the selected tree species, for example "spruce_v1", return the count
 int LevelTreeVariants(const Level *level, char names[TREE_MAX_VARIANTS][TREE_VARIANT_NAME_MAX]);

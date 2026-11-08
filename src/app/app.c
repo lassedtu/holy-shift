@@ -24,6 +24,8 @@
 #define COLOR_INK ((Color){60, 40, 24, 255})
 #define COLOR_WARNING ((Color){230, 90, 40, 255})
 #define COLOR_HIGHLIGHT ((Color){244, 210, 110, 255}) // the row of the player in the standings
+#define DIFFICULTY_WIDTH 260.0f
+#define DIFFICULTY_STEP 54.0f // the difficulty buttons are higher than the other buttons, for two lines
 #define DEV_FINISH_TIME 50.0f // the time on the results of --screen finished
 #define QUALIFY_PLACE 3 // the story goes on from this place or better (the final needs the first place)
 
@@ -34,9 +36,16 @@ static void SetScreen(App *app, Screen screen)
     UiReset(&app->ui);
 }
 
+// The difficulty of the command line, or the difficulty of the settings
+static Difficulty CurrentDifficulty(const App *app)
+{
+    return app->options.has_difficulty ? app->options.difficulty : app->settings.difficulty;
+}
+
 static bool LoadStage(App *app, const char *name)
 {
-    if (app->game_ready && strcmp(app->game.level.name, name) == 0)
+    Difficulty difficulty = CurrentDifficulty(app);
+    if (app->game_ready && strcmp(app->game.level.name, name) == 0 && app->game.difficulty == difficulty)
     {
         GameRestart(&app->game);
         return true;
@@ -49,6 +58,7 @@ static bool LoadStage(App *app, const char *name)
     Options options = app->options;
     options.level = name;
     options.mode = GAME_MODE_NORMAL;
+    options.difficulty = difficulty;
     app->game_ready = GameInit(&app->game, &options, app->message, sizeof(app->message));
     if (app->game_ready)
     {
@@ -114,14 +124,14 @@ static void PrepareBoard(App *app)
         float time = app->settings.story_last_time;
         if (time <= 0.0f)
         {
-            time = SettingsBestTime(&app->settings, name);
+            time = SettingsBestTime(&app->settings, name, CurrentDifficulty(app));
         }
         if (time <= 0.0f)
         {
             time = track.length / MAP_PIXELS_PER_METER / BOARD_DEFAULT_SPEED;
         }
         Standings standings;
-        StandingsMake(&standings, &level, track.length, time);
+        StandingsMake(&standings, &level, track.length, time, CurrentDifficulty(app));
         ScenePlayerSetBoard(&app->scene, &standings, level.display_name);
         TrackUnload(&track);
         return;
@@ -191,8 +201,9 @@ static void SceneScreen(App *app)
 // Open the screen of the --screen option, for development
 static void OpenStartScreen(App *app, const char *name)
 {
-    const char *names[] = {"stages", "settings", "paused", "crashed", "finished"};
-    Screen screens[] = {SCREEN_STAGES, SCREEN_SETTINGS, SCREEN_PAUSED, SCREEN_CRASHED, SCREEN_FINISHED};
+    const char *names[] = {"stages", "settings", "paused", "crashed", "finished", "story", "difficulty"};
+    Screen screens[] = {SCREEN_STAGES,   SCREEN_SETTINGS, SCREEN_PAUSED,    SCREEN_CRASHED,
+                        SCREEN_FINISHED, SCREEN_STORY,    SCREEN_DIFFICULTY};
     if (name != NULL && strncmp(name, "scene:", 6) == 0)
     {
         app->scene_playing = ScenePlayerStart(&app->scene, name + 6, app->message, sizeof(app->message));
@@ -203,17 +214,19 @@ static void OpenStartScreen(App *app, const char *name)
         }
         return;
     }
-    for (int i = 0; name != NULL && i < 5; i++)
+    for (int i = 0; name != NULL && i < 7; i++)
     {
         if (strcmp(name, names[i]) == 0)
         {
             SetScreen(app, screens[i]);
             app->settings_back = SCREEN_MENU;
+            app->difficulty_back = SCREEN_MENU;
             app->game.crash_time = screens[i] == SCREEN_CRASHED ? 10.0f : -1.0f;
             if (screens[i] == SCREEN_FINISHED)
             {
                 app->game.stage.time = DEV_FINISH_TIME;
-                StandingsMake(&app->standings, &app->game.level, app->game.track.length, DEV_FINISH_TIME);
+                StandingsMake(&app->standings, &app->game.level, app->game.track.length, DEV_FINISH_TIME,
+                              app->game.difficulty);
                 app->qualified = true;
             }
         }
@@ -344,14 +357,14 @@ static void UpdatePlaying(App *app, float dt)
     {
         CarAudioSetPlaying(&game->audio, false);
         float time = game->stage.time;
-        StandingsMake(&app->standings, &game->level, game->track.length, time);
+        StandingsMake(&app->standings, &game->level, game->track.length, time, game->difficulty);
         int place = app->standings.place;
-        app->new_best = SettingsRecordTime(&app->settings, game->level.name, time);
+        app->new_best = SettingsRecordTime(&app->settings, game->level.name, game->difficulty, time);
         // A tutorial has no standings, the player always goes on
         bool tutorial = game->level.tutorial;
         if (!tutorial)
         {
-            SettingsRecordPlace(&app->settings, game->level.name, place);
+            SettingsRecordPlace(&app->settings, game->level.name, game->difficulty, place);
         }
         app->final_stage = app->in_story && IsFinalStep(app);
         app->qualified = tutorial || !app->in_story || (app->final_stage ? place == 1 : place <= QUALIFY_PLACE);
@@ -385,6 +398,128 @@ static void DrawTitle(App *app, const char *text, float y, int size, Color color
     UiTextCentered(&app->ui, text, VIEW_WIDTH / 2.0f, y, size, color);
 }
 
+static void OpenDifficulty(App *app, DifficultyChoice choice, Screen back)
+{
+    app->difficulty_choice = choice;
+    app->difficulty_back = back;
+    SetScreen(app, SCREEN_DIFFICULTY);
+}
+
+// A saved story can be continued, else the player chooses the difficulty of a new story
+static void OpenStory(App *app)
+{
+    if (!app->has_story)
+    {
+        ContinueStory(app);
+    }
+    else if (app->settings.story_step > 0)
+    {
+        SetScreen(app, SCREEN_STORY);
+    }
+    else
+    {
+        OpenDifficulty(app, CHOICE_NEW_STORY, SCREEN_MENU);
+    }
+}
+
+// Return the number of the stage of the saved story (1 for the first stage) and the number of stages
+static int StoryStage(const App *app, int *count)
+{
+    int stage = 0;
+    *count = 0;
+    for (int i = 0; i < app->story.count; i++)
+    {
+        if (app->story.steps[i].type == STORY_STAGE)
+        {
+            (*count)++;
+            if (i < app->settings.story_step)
+            {
+                stage++;
+            }
+        }
+    }
+    return stage + 1 > *count ? *count : stage + 1;
+}
+
+static void StoryScreen(App *app)
+{
+    Ui *ui = &app->ui;
+    UiDim(ui, 0.5f);
+    float top = 140.0f;
+    ColumnPanel(app, top, 3, BUTTON_WIDTH, 56.0f);
+    UiTextCentered(ui, "STORY", VIEW_WIDTH / 2.0f, top - 60.0f, HEADING_SIZE, COLOR_INK);
+    int count;
+    int stage = StoryStage(app, &count);
+    UiTextCentered(ui, TextFormat("STAGE %d OF %d - %s", stage, count, DIFFICULTY_RULES[app->settings.difficulty].label),
+                   VIEW_WIDTH / 2.0f, top - 24.0f, LABEL_SIZE, COLOR_INK);
+    if (UiButton(ui, ButtonAt(top, 0, BUTTON_WIDTH), "CONTINUE"))
+    {
+        ContinueStory(app);
+    }
+    else if (UiButton(ui, ButtonAt(top, 1, BUTTON_WIDTH), "NEW STORY"))
+    {
+        OpenDifficulty(app, CHOICE_NEW_STORY, SCREEN_STORY);
+    }
+    else if (UiButton(ui, ButtonAt(top, 2, BUTTON_WIDTH), "BACK") || Back(app))
+    {
+        SetScreen(app, SCREEN_MENU);
+    }
+}
+
+static void ChooseDifficulty(App *app, Difficulty difficulty)
+{
+    if (app->difficulty_choice == CHOICE_NEW_STORY)
+    {
+        SettingsNewStory(&app->settings, difficulty);
+        SettingsSave(&app->settings);
+        ContinueStory(app);
+        return;
+    }
+    app->settings.difficulty = difficulty;
+    SettingsSave(&app->settings);
+    char name[LEVEL_MAX_NAME];
+    snprintf(name, sizeof(name), "%s", app->game.level.name);
+    StartStage(app, name);
+}
+
+static void DifficultyScreen(App *app)
+{
+    Ui *ui = &app->ui;
+    UiDim(ui, 0.5f);
+    bool new_story = app->difficulty_choice == CHOICE_NEW_STORY;
+    bool replaces = new_story && app->settings.story_step > 0;
+    float heading = replaces ? 56.0f : 36.0f;
+    float height = heading + DIFFICULTY_COUNT * DIFFICULTY_STEP + BUTTON_HEIGHT;
+    float top = floorf((VIEW_HEIGHT - height) / 2.0f) + heading;
+    float x = (VIEW_WIDTH - DIFFICULTY_WIDTH) / 2.0f;
+    UiPanel(ui, (Rectangle){x - PANEL_MARGIN, top - heading - PANEL_MARGIN, DIFFICULTY_WIDTH + 2.0f * PANEL_MARGIN,
+                            height + 2.0f * PANEL_MARGIN});
+    UiTextCentered(ui, new_story ? "NEW STORY" : "DIFFICULTY", VIEW_WIDTH / 2.0f, top - heading - 4.0f, HEADING_SIZE,
+                   COLOR_INK);
+    if (replaces)
+    {
+        UiTextCentered(ui, "THIS REPLACES YOUR SAVED STORY", VIEW_WIDTH / 2.0f, top - 24.0f, LABEL_SIZE,
+                       COLOR_WARNING);
+    }
+    for (int i = 0; i < DIFFICULTY_COUNT; i++)
+    {
+        const DifficultyRules *rules = &DIFFICULTY_RULES[i];
+        bool current = !new_story && (Difficulty)i == app->settings.difficulty;
+        Rectangle rect = {x, top + (float)i * DIFFICULTY_STEP, DIFFICULTY_WIDTH, DIFFICULTY_STEP - 6.0f};
+        const char *label = current ? TextFormat("> %s <", rules->label) : rules->label;
+        if (UiColorButton(ui, rect, label, rules->description, rules->color, rules->ink))
+        {
+            ChooseDifficulty(app, (Difficulty)i);
+            return;
+        }
+    }
+    Rectangle back = {x, top + DIFFICULTY_COUNT * DIFFICULTY_STEP, DIFFICULTY_WIDTH, BUTTON_HEIGHT};
+    if (UiButton(ui, back, "BACK") || Back(app))
+    {
+        SetScreen(app, app->difficulty_back);
+    }
+}
+
 static void MenuScreen(App *app)
 {
     Ui *ui = &app->ui;
@@ -394,7 +529,7 @@ static void MenuScreen(App *app)
     ColumnPanel(app, top, 4, BUTTON_WIDTH, 0.0f);
     if (UiButton(ui, ButtonAt(top, 0, BUTTON_WIDTH), "STORY"))
     {
-        ContinueStory(app);
+        OpenStory(app);
     }
     if (UiButton(ui, ButtonAt(top, 1, BUTTON_WIDTH), "FREE PLAY"))
     {
@@ -419,24 +554,39 @@ static void StagesScreen(App *app)
 {
     Ui *ui = &app->ui;
     UiDim(ui, 0.5f);
-    float width = 260.0f;
-    float top = 100.0f;
+    float width = 280.0f;
+    float step = 32.0f; // smaller than BUTTON_STEP, so many levels fit
+    float button = 28.0f;
     int count = app->level_count;
-    ColumnPanel(app, top, count + 1, width, 36.0f);
+    float heading = 36.0f;
+    float height = heading + (float)(count + 2) * step - (step - button);
+    float top = floorf((VIEW_HEIGHT - height) / 2.0f) + heading;
+    UiPanel(ui, (Rectangle){(VIEW_WIDTH - width) / 2.0f - PANEL_MARGIN, top - heading - PANEL_MARGIN,
+                            width + 2.0f * PANEL_MARGIN, height + 2.0f * PANEL_MARGIN});
     UiTextCentered(ui, "FREE PLAY", VIEW_WIDTH / 2.0f, top - 40.0f, HEADING_SIZE, COLOR_INK);
+    Difficulty difficulty = CurrentDifficulty(app);
     for (int i = 0; i < count; i++)
     {
-        float best = SettingsBestTime(&app->settings, app->levels[i]);
-        const char *medal = StandingsMedal(SettingsBestPlace(&app->settings, app->levels[i]));
+        float best = SettingsBestTime(&app->settings, app->levels[i], difficulty);
+        const char *medal = StandingsMedal(SettingsBestPlace(&app->settings, app->levels[i], difficulty));
         const char *label = best < 0.0f ? app->level_titles[i]
                                         : TextFormat("%s   %s   %s", app->level_titles[i], HudFormatTime(best),
                                                      medal != NULL ? medal : "");
-        if (UiButton(ui, ButtonAt(top, i, width), label))
+        Rectangle rect = {(VIEW_WIDTH - width) / 2.0f, top + (float)i * step, width, button};
+        if (UiButton(ui, rect, label))
         {
             StartStage(app, app->levels[i]);
         }
     }
-    if (UiButton(ui, ButtonAt(top, count, width), "BACK") || Back(app))
+    Rectangle rect = {(VIEW_WIDTH - width) / 2.0f, top + (float)count * step, width, button};
+    if (UiButton(ui, rect, TextFormat("DIFFICULTY: %s", DIFFICULTY_RULES[difficulty].label)))
+    {
+        app->settings.difficulty = (Difficulty)((difficulty + 1) % DIFFICULTY_COUNT);
+        app->options.has_difficulty = false;
+        SettingsSave(&app->settings);
+    }
+    rect.y += step;
+    if (UiButton(ui, rect, "BACK") || Back(app))
     {
         SetScreen(app, SCREEN_MENU);
     }
@@ -449,7 +599,7 @@ static void SettingsScreen(App *app)
     UiDim(ui, 0.5f);
     float width = 280.0f;
     float top = 100.0f;
-    ColumnPanel(app, top, 5, width, 36.0f);
+    ColumnPanel(app, top, 6, width, 36.0f);
     UiTextCentered(ui, "SETTINGS", VIEW_WIDTH / 2.0f, top - 40.0f, HEADING_SIZE, COLOR_INK);
 
     bool changed = false;
@@ -467,9 +617,21 @@ static void SettingsScreen(App *app)
     {
         SettingsApply(settings);
     }
-    if (UiButton(ui, ButtonAt(top, 4, width), "BACK") || Back(app))
+    if (UiButton(ui, ButtonAt(top, 4, width), TextFormat("DIFFICULTY: %s", DIFFICULTY_RULES[settings->difficulty].label)))
+    {
+        settings->difficulty = (Difficulty)((settings->difficulty + 1) % DIFFICULTY_COUNT);
+        app->options.has_difficulty = false;
+    }
+    if (UiButton(ui, ButtonAt(top, 5, width), "BACK") || Back(app))
     {
         SettingsSave(settings);
+        // A new difficulty changes the road, so a stage that is paused starts again
+        if (app->settings_back == SCREEN_PAUSED && app->game.difficulty != settings->difficulty)
+        {
+            char name[LEVEL_MAX_NAME];
+            snprintf(name, sizeof(name), "%s", app->game.level.name);
+            LoadStage(app, name);
+        }
         SetScreen(app, app->settings_back);
     }
 }
@@ -511,15 +673,21 @@ static void PausedScreen(App *app)
 static void CrashedScreen(App *app)
 {
     Ui *ui = &app->ui;
-    float top = 150.0f;
-    ColumnPanel(app, top, 2, BUTTON_WIDTH, 36.0f);
+    float top = 140.0f;
+    float width = 220.0f;
+    ColumnPanel(app, top, 3, width, 36.0f);
     UiTextCentered(ui, "CRASHED", VIEW_WIDTH / 2.0f, top - 40.0f, HEADING_SIZE, COLOR_WARNING);
-    if (UiButton(ui, ButtonAt(top, 0, BUTTON_WIDTH), "RETRY") || IsKeyPressed(KEY_R))
+    if (UiButton(ui, ButtonAt(top, 0, width), "RETRY") || IsKeyPressed(KEY_R))
     {
         GameRestart(&app->game);
         Resume(app);
     }
-    else if (UiButton(ui, ButtonAt(top, 1, BUTTON_WIDTH), "MENU") || Back(app))
+    else if (UiButton(ui, ButtonAt(top, 1, width),
+                      TextFormat("DIFFICULTY: %s", DIFFICULTY_RULES[app->game.difficulty].label)))
+    {
+        OpenDifficulty(app, CHOICE_RETRY, SCREEN_CRASHED);
+    }
+    else if (UiButton(ui, ButtonAt(top, 2, width), "MENU") || Back(app))
     {
         OpenMenu(app);
     }
@@ -545,8 +713,8 @@ static void TutorialFinishedScreen(App *app)
     UiTextCentered(ui, app->game.level.display_name, middle, y, LABEL_SIZE, COLOR_INK);
     UiTextCentered(ui, "FINISH", middle, y + 16.0f, HEADING_SIZE, COLOR_INK);
     UiTextCentered(ui, HudFormatTime(app->game.stage.time), middle, y + 44.0f, HEADING_SIZE, COLOR_INK);
-    float best = SettingsBestTime(&app->settings, app->game.level.name);
-    const char *line = app->new_best ? "NEW BEST TIME!" : TextFormat("BEST  %s", HudFormatTime(best));
+    float best = SettingsBestTime(&app->settings, app->game.level.name, app->game.difficulty);
+    const char *line = app->new_best ? "NEW BEST TIME!" : (best >= 0.0f ? TextFormat("BEST  %s", HudFormatTime(best)) : "");
     UiTextCentered(ui, line, middle, y + 72.0f, LABEL_SIZE, app->new_best ? COLOR_WARNING : COLOR_INK);
 
     int button = 0;
@@ -589,7 +757,8 @@ static void FinishedScreen(App *app)
     UiPanel(ui, panel);
     float middle = VIEW_WIDTH / 2.0f;
     float y = panel.y + 10.0f;
-    UiTextCentered(ui, app->game.level.display_name, middle, y, LABEL_SIZE, COLOR_INK);
+    UiTextCentered(ui, TextFormat("%s - %s", app->game.level.display_name, DIFFICULTY_RULES[app->game.difficulty].label),
+                   middle, y, LABEL_SIZE, COLOR_INK);
     y += 16.0f;
 
     // The place, with a medal for the first three places
@@ -667,7 +836,8 @@ void AppFrame(App *app)
     {
         UpdatePlaying(app, dt);
     }
-    else if (app->screen == SCREEN_MENU || app->screen == SCREEN_STAGES ||
+    else if (app->screen == SCREEN_MENU || app->screen == SCREEN_STAGES || app->screen == SCREEN_STORY ||
+             (app->screen == SCREEN_DIFFICULTY && app->difficulty_choice == CHOICE_NEW_STORY) ||
              (app->screen == SCREEN_SETTINGS && app->settings_back == SCREEN_MENU))
     {
         app->menu_time += dt;
@@ -708,6 +878,12 @@ void AppFrame(App *app)
         break;
     case SCREEN_SCENE:
         SceneScreen(app);
+        break;
+    case SCREEN_STORY:
+        StoryScreen(app);
+        break;
+    case SCREEN_DIFFICULTY:
+        DifficultyScreen(app);
         break;
     case SCREEN_PLAYING:
         break;

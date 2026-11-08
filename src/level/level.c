@@ -1,5 +1,6 @@
 #include "level/level.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -132,6 +133,11 @@ int LevelFindAll(char names[][LEVEL_MAX_NAME], int max)
     return count;
 }
 
+void LevelApplyDifficulty(Level *level, Difficulty difficulty)
+{
+    level->road_width = (int)lroundf((float)level->road_width * DIFFICULTY_RULES[difficulty].road_width);
+}
+
 int LevelTreeVariants(const Level *level, char names[TREE_MAX_VARIANTS][TREE_VARIANT_NAME_MAX])
 {
     int count = 0;
@@ -240,15 +246,22 @@ bool LevelLoad(Level *level, const char *name, char *message, size_t size)
     JsonReadBool(text, "jelka_just_ahead", &loaded.jelka_just_ahead);
     char theme[32];
     loaded.ground_theme = JsonReadString(text, "theme", theme, sizeof(theme)) ? GroundThemeFind(theme) : GROUND_FOREST;
-    int times = JsonReadNumberArray(text, "times", loaded.times, LEVEL_RIVALS);
-    loaded.time_count = times > 0 ? times : 0;
+    for (int d = 0; d < DIFFICULTY_COUNT; d++)
+    {
+        int times = JsonReadNumberArray(text, DIFFICULTY_RULES[d].times_key, loaded.times[d], LEVEL_RIVALS);
+        loaded.time_count[d] = times > 0 ? times : 0;
+    }
 
     loaded.road_color = COLOR_ROAD;
-    float road[3];
-    if (JsonReadNumberArray(text, "road", road, 3) == 3)
+    loaded.outside_color = COLOR_OUTSIDE;
+    float color[3];
+    if (JsonReadNumberArray(text, "road", color, 3) == 3)
     {
-        loaded.road_color = (Color){(unsigned char)road[0], (unsigned char)road[1],
-                                    (unsigned char)road[2], 255};
+        loaded.road_color = (Color){(unsigned char)color[0], (unsigned char)color[1], (unsigned char)color[2], 255};
+    }
+    if (JsonReadNumberArray(text, "outside", color, 3) == 3)
+    {
+        loaded.outside_color = (Color){(unsigned char)color[0], (unsigned char)color[1], (unsigned char)color[2], 255};
     }
 
     ReadTrees(text, &loaded);

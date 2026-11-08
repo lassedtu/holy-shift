@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "core/config.h"
+#include "level/logic_map.h"
 #include "raymath.h"
 #include "render/present.h"
 #include "ui/hud.h"
@@ -49,6 +50,8 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
     {
         return false;
     }
+    game->difficulty = options->difficulty;
+    LevelApplyDifficulty(&game->level, game->difficulty);
     if (!TrackBuild(&game->track, &game->level))
     {
         snprintf(message, size, "Could not build the track for \"%s\"", name);
@@ -64,9 +67,21 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
         return false;
     }
 
-    bool loaded = LevelTexturesLoad(&game->textures, &game->level, &game->forest, message, size) &&
-                  SurfaceMapLoad(&game->surface, &game->level, message, size) &&
-                  Mode7Init(&game->mode7, message, size) &&
+    // The road of the logic map has the width of medium, other difficulties paint it again
+    Image logic;
+    if (!LogicMapLoad(&logic, &game->level, &game->track, game->difficulty != DIFFICULTY_MEDIUM, message, size))
+    {
+        GameShutdown(game);
+        return false;
+    }
+    bool loaded = LevelTexturesLoad(&game->textures, &game->level, &logic, &game->forest, message, size);
+    if (loaded && !SurfaceMapLoad(&game->surface, &game->level, &logic))
+    {
+        snprintf(message, size, "Not enough memory for the logic map of \"%s\"", name);
+        loaded = false;
+    }
+    UnloadImage(logic);
+    loaded = loaded && Mode7Init(&game->mode7, message, size) &&
                   TreesInit(&game->trees, &game->level, message, size) &&
                   CockpitLoad(&game->cockpit, message, size);
     if (loaded && !PaceMapInit(&game->map))

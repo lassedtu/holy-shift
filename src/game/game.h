@@ -34,6 +34,7 @@
 typedef struct Game
 {
     GameMode mode;
+    Difficulty difficulty;
     Level level;
     Track track;
     Forest forest;

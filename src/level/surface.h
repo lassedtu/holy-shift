@@ -21,8 +21,8 @@ typedef struct SurfaceMap
     Color road;
 } SurfaceMap;
 
-// Load the logic map of a level, write the reason in message when it fails
-bool SurfaceMapLoad(SurfaceMap *map, const Level *level, char *message, size_t size);
+// Keep a copy of the logic map of a level (see level/logic_map.h), return false when there is not enough memory
+bool SurfaceMapLoad(SurfaceMap *map, const Level *level, const Image *logic);
 void SurfaceMapUnload(SurfaceMap *map);
 
 // Return the surface at a point of the map

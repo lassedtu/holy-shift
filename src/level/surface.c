@@ -4,20 +4,12 @@
 
 #include "core/config.h"
 
-bool SurfaceMapLoad(SurfaceMap *map, const Level *level, char *message, size_t size)
+bool SurfaceMapLoad(SurfaceMap *map, const Level *level, const Image *logic)
 {
     *map = (SurfaceMap){0};
-    char path[256];
-    LevelFilePath(level, LEVEL_LOGIC_FILE, path, sizeof(path));
-    map->logic = LoadImage(path);
-    if (!IsImageValid(map->logic))
-    {
-        snprintf(message, size, "Could not load %s", path);
-        return false;
-    }
-    ImageFormat(&map->logic, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+    map->logic = ImageCopy(*logic);
     map->road = level->road_color;
-    return true;
+    return IsImageValid(map->logic);
 }
 
 void SurfaceMapUnload(SurfaceMap *map)

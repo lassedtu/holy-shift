@@ -12,13 +12,28 @@ static const char *const RIVALS[LEVEL_RIVALS] = {"Jelka", "Dino", "Vesna", "Tomo
 // The times of the other drivers when the level has no times, as parts of the time of the fastest driver
 static const float DEFAULT_FACTORS[LEVEL_RIVALS] = {1.00f, 1.04f, 1.08f, 1.12f, 1.17f, 1.23f, 1.30f};
 
-void StandingsMake(Standings *standings, const Level *level, float track_length, float player_time)
+// Return the time of one of the other drivers
+static float RivalTime(const Level *level, float track_length, Difficulty difficulty, int i)
 {
-    float base = track_length / MAP_PIXELS_PER_METER / DEFAULT_SPEED;
+    if (i < level->time_count[difficulty])
+    {
+        return level->times[difficulty][i];
+    }
+    float scale = DIFFICULTY_RULES[difficulty].rival_time;
+    if (i < level->time_count[DIFFICULTY_MEDIUM])
+    {
+        return level->times[DIFFICULTY_MEDIUM][i] * scale;
+    }
+    return track_length / MAP_PIXELS_PER_METER / DEFAULT_SPEED * DEFAULT_FACTORS[i] * scale;
+}
+
+void StandingsMake(Standings *standings, const Level *level, float track_length, float player_time,
+                   Difficulty difficulty)
+{
     int count = 0;
     for (int i = 0; i < LEVEL_RIVALS; i++)
     {
-        float time = i < level->time_count ? level->times[i] : base * DEFAULT_FACTORS[i];
+        float time = RivalTime(level, track_length, difficulty, i);
         if (i == 0 && level->jelka_just_ahead)
         {
             time = player_time - JELKA_LEAD;
