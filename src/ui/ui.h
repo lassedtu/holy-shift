@@ -57,6 +57,9 @@ void UiPanelDark(const Ui *ui, Rectangle rect);
 
 void UiFill(const Ui *ui, Rectangle rect, Color color);
 
+// A filled circle with a dark outline, the center and the radius are in game pixels
+void UiCircle(const Ui *ui, Vector2 center, float radius, Color color, Color outline);
+
 // Draw a part of a texture into a rectangle
 void UiTexture(const Ui *ui, Texture2D texture, Rectangle source, Rectangle rect, Color tint);
 

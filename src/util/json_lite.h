@@ -12,6 +12,10 @@ const char *JsonFindKey(const char *text, const char *key);
 // Read a number that follows a key
 bool JsonReadNumber(const char *text, const char *key, double *value);
 
+// Read a string that follows a key into text, return false when the key or the string is missing
+// The string must not have escaped quotes, a string that is too long is cut
+bool JsonReadString(const char *text, const char *key, char *value, int size);
+
 // Read true or false that follows a key
 bool JsonReadBool(const char *text, const char *key, bool *value);
 

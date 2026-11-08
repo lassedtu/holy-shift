@@ -9,20 +9,25 @@
 
 #define LEVEL_MAX_POINTS 512
 #define LEVEL_MAX_NAME 64
+#define LEVEL_RIVALS 7 // the other drivers of a stage, see game/standings.h
 
 // The data of a level file (levels/<name>/level.json)
 // The points are the control points of the road curve, in map pixels
 typedef struct Level
 {
-    char name[LEVEL_MAX_NAME];
+    char name[LEVEL_MAX_NAME];         // the name of the folder
+    char display_name[LEVEL_MAX_NAME]; // the name that the player sees, the folder name when the file has none
     Vector2 points[LEVEL_MAX_POINTS];
     int count;
-    bool closed;   // the last point connects to the first point
-    bool tutorial; // the game shows the hints of the tutorial on this level
+    bool closed;               // the last point connects to the first point
+    bool tutorial;             // the game shows the hints of the tutorial on this level
+    float times[LEVEL_RIVALS]; // seconds of the other drivers, in the order of game/standings.c
+    int time_count;            // 0 when the level file has no times, then the times are made from the length
+    bool jelka_just_ahead;     // Jelka's time is always 1 second less than the time of the player
     int map_width;
     int map_height;
     int road_width;
-    Color road_color; // color of the road in the logic map
+    Color road_color;               // color of the road in the logic map
     bool trees[TREE_SPECIES_COUNT]; // the species of trees around the road
 } Level;
 
@@ -37,6 +42,9 @@ void LevelFilePath(const Level *level, const char *file, char *path, size_t size
 
 // Write the name of the first saved level (in alphabetical order), return false if there is none
 bool LevelFindFirst(char *name, size_t size);
+
+// Write the display name of a saved level, or its folder name when it has none
+void LevelReadDisplayName(const char *name, char *display_name, int size);
 
 // Write the names of the saved levels in alphabetical order, at most max names, return the count
 int LevelFindAll(char names[][LEVEL_MAX_NAME], int max);

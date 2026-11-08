@@ -260,7 +260,8 @@ void GameDrawView(const Game *game, Rectangle destination)
         PaceMapDraw(&game->map, destination);
         if (game->show_hud)
         {
-            HudDraw(&game->car, game->mode == GAME_MODE_NORMAL ? &game->stage : NULL, destination);
+            HudDraw(&game->car, game->mode == GAME_MODE_NORMAL ? &game->stage : NULL, game->level.display_name,
+                    destination);
         }
     }
     float black = game->fade_in / RESTART_FADE_SECONDS;

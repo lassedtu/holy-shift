@@ -21,6 +21,9 @@
 #define COLOR_SHADOW ((Color){40, 24, 12, 255})
 #define COLOR_INK ((Color){60, 40, 24, 255})
 #define COLOR_WARNING ((Color){230, 90, 40, 255})
+#define COLOR_HIGHLIGHT ((Color){244, 210, 110, 255}) // the row of the player in the standings
+#define DEV_FINISH_TIME 50.0f // the time on the results of --screen finished
+#define QUALIFY_PLACE 3 // the story goes on from this place or better (the final needs the first place)
 
 static void SetScreen(App *app, Screen screen)
 {
@@ -166,6 +169,12 @@ static void OpenStartScreen(App *app, const char *name)
             SetScreen(app, screens[i]);
             app->settings_back = SCREEN_MENU;
             app->game.crash_time = screens[i] == SCREEN_CRASHED ? 10.0f : -1.0f;
+            if (screens[i] == SCREEN_FINISHED)
+            {
+                app->game.stage.time = DEV_FINISH_TIME;
+                StandingsMake(&app->standings, &app->game.level, app->game.track.length, DEV_FINISH_TIME);
+                app->qualified = true;
+            }
         }
     }
 }
@@ -184,6 +193,10 @@ bool AppInit(App *app, const Options *options, char *message, size_t size)
         return false;
     }
     app->level_count = LevelFindAll(app->levels, APP_MAX_LEVELS);
+    for (int i = 0; i < app->level_count; i++)
+    {
+        LevelReadDisplayName(app->levels[i], app->level_titles[i], LEVEL_MAX_NAME);
+    }
     char story_message[256];
     app->has_story = StoryLoad(&app->story, story_message, sizeof(story_message));
     if (!app->has_story)
@@ -254,6 +267,20 @@ static void UpdateCursor(App *app)
     app->cursor_hidden = hide;
 }
 
+// Return true when the story step is the last stage of the story, the final
+static bool IsFinalStep(const App *app)
+{
+    int last = -1;
+    for (int i = 0; i < app->story.count; i++)
+    {
+        if (app->story.steps[i].type == STORY_STAGE)
+        {
+            last = i;
+        }
+    }
+    return app->has_story && app->settings.story_step == last;
+}
+
 static void UpdatePlaying(App *app, float dt)
 {
     Game *game = &app->game;
@@ -275,11 +302,23 @@ static void UpdatePlaying(App *app, float dt)
     else if (game->stage.phase == STAGE_FINISHED)
     {
         CarAudioSetPlaying(&game->audio, false);
-        app->new_best = SettingsRecordTime(&app->settings, game->level.name, game->stage.time);
-        if (app->new_best)
+        float time = game->stage.time;
+        StandingsMake(&app->standings, &game->level, game->track.length, time);
+        int place = app->standings.place;
+        app->new_best = SettingsRecordTime(&app->settings, game->level.name, time);
+        // A tutorial has no standings, the player always goes on
+        bool tutorial = game->level.tutorial;
+        if (!tutorial)
         {
-            SettingsSave(&app->settings);
+            SettingsRecordPlace(&app->settings, game->level.name, place);
         }
+        app->final_stage = app->in_story && IsFinalStep(app);
+        app->qualified = tutorial || !app->in_story || (app->final_stage ? place == 1 : place <= QUALIFY_PLACE);
+        if (app->in_story)
+        {
+            app->settings.story_last_time = time;
+        }
+        SettingsSave(&app->settings);
         SetScreen(app, SCREEN_FINISHED);
     }
 }
@@ -347,7 +386,10 @@ static void StagesScreen(App *app)
     for (int i = 0; i < count; i++)
     {
         float best = SettingsBestTime(&app->settings, app->levels[i]);
-        const char *label = best < 0.0f ? app->levels[i] : TextFormat("%s   %s", app->levels[i], HudFormatTime(best));
+        const char *medal = StandingsMedal(SettingsBestPlace(&app->settings, app->levels[i]));
+        const char *label = best < 0.0f ? app->level_titles[i]
+                                        : TextFormat("%s   %s   %s", app->level_titles[i], HudFormatTime(best),
+                                                     medal != NULL ? medal : "");
         if (UiButton(ui, ButtonAt(top, i, width), label))
         {
             StartStage(app, app->levels[i]);
@@ -442,29 +484,125 @@ static void CrashedScreen(App *app)
     }
 }
 
-static void FinishedScreen(App *app)
+static Color MedalColor(int place)
+{
+    static const Color colors[] = {{232, 184, 48, 255}, {200, 204, 214, 255}, {200, 124, 64, 255}};
+    return place >= 1 && place <= 3 ? colors[place - 1] : COLOR_INK;
+}
+
+// The result of a tutorial: only the time of the player, no standings
+static void TutorialFinishedScreen(App *app)
 {
     Ui *ui = &app->ui;
     UiDim(ui, 0.4f);
-    float top = app->in_story ? 150.0f : 170.0f;
-    float heading = 76.0f;
-    ColumnPanel(app, top, app->in_story ? 3 : 2, BUTTON_WIDTH, heading);
+    int buttons = app->in_story ? 3 : 2;
+    float heading = 92.0f;
+    float top = floorf((VIEW_HEIGHT - heading - (float)buttons * BUTTON_STEP) / 2.0f) + heading;
+    ColumnPanel(app, top, buttons, BUTTON_WIDTH, heading);
+    float middle = VIEW_WIDTH / 2.0f;
     float y = top - heading - 2.0f;
-    UiTextCentered(ui, "FINISH", VIEW_WIDTH / 2.0f, y, HEADING_SIZE, COLOR_INK);
-    UiTextCentered(ui, HudFormatTime(app->game.stage.time), VIEW_WIDTH / 2.0f, y + 28.0f, HEADING_SIZE, COLOR_INK);
+    UiTextCentered(ui, app->game.level.display_name, middle, y, LABEL_SIZE, COLOR_INK);
+    UiTextCentered(ui, "FINISH", middle, y + 16.0f, HEADING_SIZE, COLOR_INK);
+    UiTextCentered(ui, HudFormatTime(app->game.stage.time), middle, y + 44.0f, HEADING_SIZE, COLOR_INK);
     float best = SettingsBestTime(&app->settings, app->game.level.name);
-    const char *line = app->new_best ? "NEW BEST TIME!" : (best < 0.0f ? "" : TextFormat("BEST  %s", HudFormatTime(best)));
-    UiTextCentered(ui, line, VIEW_WIDTH / 2.0f, y + 56.0f, LABEL_SIZE, app->new_best ? COLOR_WARNING : COLOR_INK);
-    if (app->in_story && UiButton(ui, ButtonAt(top, 0, BUTTON_WIDTH), "CONTINUE"))
+    const char *line = app->new_best ? "NEW BEST TIME!" : TextFormat("BEST  %s", HudFormatTime(best));
+    UiTextCentered(ui, line, middle, y + 72.0f, LABEL_SIZE, app->new_best ? COLOR_WARNING : COLOR_INK);
+
+    int button = 0;
+    if (app->in_story && UiButton(ui, ButtonAt(top, button++, BUTTON_WIDTH), "CONTINUE"))
     {
         NextStoryStep(app);
     }
-    else if (UiButton(ui, ButtonAt(top, app->in_story ? 1 : 0, BUTTON_WIDTH), "DRIVE AGAIN") || IsKeyPressed(KEY_R))
+    else if (UiButton(ui, ButtonAt(top, button++, BUTTON_WIDTH), "DRIVE AGAIN") || IsKeyPressed(KEY_R))
     {
         GameRestart(&app->game);
         Resume(app);
     }
-    else if (UiButton(ui, ButtonAt(top, app->in_story ? 2 : 1, BUTTON_WIDTH), "MENU") || Back(app))
+    else if (UiButton(ui, ButtonAt(top, button++, BUTTON_WIDTH), "MENU") || Back(app))
+    {
+        OpenMenu(app);
+    }
+}
+
+// The results of the stage: the place, the medal, the standings of all drivers and the buttons
+static void FinishedScreen(App *app)
+{
+    if (app->game.level.tutorial)
+    {
+        TutorialFinishedScreen(app);
+        return;
+    }
+    Ui *ui = &app->ui;
+    const Standings *standings = &app->standings;
+    int place = standings->place;
+    UiDim(ui, 0.5f);
+
+    bool story_next = app->in_story && app->qualified;
+    int buttons = story_next ? 3 : 2;
+    float row_height = 14.0f;
+    float message = app->in_story && !app->qualified ? 16.0f : 0.0f;
+    float height = 12.0f + 16.0f + 30.0f + 18.0f + 6.0f + STANDINGS_DRIVERS * row_height + 8.0f + message +
+                   (float)buttons * BUTTON_STEP - (BUTTON_STEP - BUTTON_HEIGHT) + 12.0f;
+    float width = 300.0f;
+    Rectangle panel = {(VIEW_WIDTH - width) / 2.0f, floorf((VIEW_HEIGHT - height) / 2.0f), width, height};
+    UiPanel(ui, panel);
+    float middle = VIEW_WIDTH / 2.0f;
+    float y = panel.y + 10.0f;
+    UiTextCentered(ui, app->game.level.display_name, middle, y, LABEL_SIZE, COLOR_INK);
+    y += 16.0f;
+
+    // The place, with a medal for the first three places
+    const char *place_text = TextFormat("%s PLACE", StandingsPlaceName(place));
+    UiTextCentered(ui, place_text, middle, y, HEADING_SIZE, COLOR_INK);
+    if (StandingsMedal(place) != NULL)
+    {
+        float half = UiTextWidth(ui, place_text, HEADING_SIZE) / 2.0f;
+        Vector2 center = {middle - half - 14.0f, y + 15.0f};
+        UiCircle(ui, center, 8.0f, MedalColor(place), COLOR_INK);
+        UiTextCentered(ui, TextFormat("%d", place), center.x, center.y - 7.0f, LABEL_SIZE, COLOR_INK);
+    }
+    y += 30.0f;
+    const char *line = TextFormat("%s   %s", HudFormatTime(app->game.stage.time),
+                                  app->new_best ? "NEW BEST TIME!" : (StandingsMedal(place) != NULL ?
+                                  TextFormat("%s MEDAL", StandingsMedal(place)) : "NO MEDAL"));
+    UiTextCentered(ui, line, middle, y, LABEL_SIZE, app->new_best ? COLOR_WARNING : COLOR_INK);
+    y += 18.0f + 6.0f;
+
+    // The standings, the row of the player is lit
+    float left = panel.x + 18.0f;
+    float right = panel.x + panel.width - 18.0f;
+    for (int i = 0; i < STANDINGS_DRIVERS; i++)
+    {
+        const StandingsRow *row = &standings->rows[i];
+        if (row->player)
+        {
+            UiFill(ui, (Rectangle){left - 6.0f, y - 1.0f, right - left + 12.0f, row_height}, COLOR_HIGHLIGHT);
+        }
+        UiText(ui, TextFormat("%d.", i + 1), left, y - 3.0f, LABEL_SIZE, COLOR_INK);
+        UiText(ui, row->name, left + 24.0f, y - 3.0f, LABEL_SIZE, COLOR_INK);
+        const char *time = HudFormatTime(row->time);
+        UiText(ui, time, right - UiTextWidth(ui, time, LABEL_SIZE), y - 3.0f, LABEL_SIZE, COLOR_INK);
+        y += row_height;
+    }
+    y += 8.0f;
+    if (message > 0.0f)
+    {
+        UiTextCentered(ui, app->final_stage ? "ONLY A WIN COUNTS IN THE FINAL" : "TOP 3 TO GO ON", middle, y - 2.0f,
+                       LABEL_SIZE, COLOR_WARNING);
+        y += message;
+    }
+
+    int button = 0;
+    if (story_next && UiButton(ui, ButtonAt(y, button++, BUTTON_WIDTH), "CONTINUE"))
+    {
+        NextStoryStep(app);
+    }
+    else if (UiButton(ui, ButtonAt(y, button++, BUTTON_WIDTH), "DRIVE AGAIN") || IsKeyPressed(KEY_R))
+    {
+        GameRestart(&app->game);
+        Resume(app);
+    }
+    else if (UiButton(ui, ButtonAt(y, button++, BUTTON_WIDTH), "MENU") || Back(app))
     {
         OpenMenu(app);
     }

@@ -166,6 +166,13 @@ void UiFill(const Ui *ui, Rectangle rect, Color color)
     DrawRectangleRec(ToWindow(ui, rect), color);
 }
 
+void UiCircle(const Ui *ui, Vector2 center, float radius, Color color, Color outline)
+{
+    Vector2 at = {ui->area.x + center.x * ui->scale, ui->area.y + center.y * ui->scale};
+    DrawCircleV(at, (radius + 1.0f) * ui->scale, outline);
+    DrawCircleV(at, radius * ui->scale, color);
+}
+
 void UiTexture(const Ui *ui, Texture2D texture, Rectangle source, Rectangle rect, Color tint)
 {
     DrawTexturePro(texture, source, ToWindow(ui, rect), (Vector2){0, 0}, 0.0f, tint);

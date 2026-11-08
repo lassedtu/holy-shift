@@ -32,7 +32,7 @@ static void DrawCentered(const char *text, Rectangle destination, float y, int s
     TextDraw(text, (int)(destination.x + (destination.width - (float)width) / 2.0f), (int)y, size, color);
 }
 
-void HudDraw(const Car *car, const Stage *stage, Rectangle destination)
+void HudDraw(const Car *car, const Stage *stage, const char *title, Rectangle destination)
 {
     float scale = destination.height / VIEW_HEIGHT;
     int size = (int)(HUD_FONT_SIZE * scale);
@@ -86,6 +86,10 @@ void HudDraw(const Car *car, const Stage *stage, Rectangle destination)
     if (stage->phase == STAGE_COUNTDOWN)
     {
         DrawCentered(TextFormat("%d", (int)ceilf(stage->countdown)), destination, middle, big, WHITE);
+        if (title != NULL)
+        {
+            DrawCentered(title, destination, middle - (float)size * 2.5f, size * 2, WHITE);
+        }
     }
     else if (stage->phase == STAGE_RUNNING && stage->time < LAUNCH_TEXT_SECONDS)
     {

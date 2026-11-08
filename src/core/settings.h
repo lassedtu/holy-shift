@@ -11,6 +11,7 @@ typedef struct BestTime
 {
     char level[LEVEL_MAX_NAME];
     float seconds;
+    int place; // the best place in the standings, 0 when there is none
 } BestTime;
 
 // The settings of the player and the best time of each level, kept in SAVE_PATH
@@ -20,7 +21,8 @@ typedef struct Settings
     bool invert_look;        // true when the mouse moves the view up and down the other way
     float volume;            // from 0 to 1
     bool fullscreen;
-    int story_step; // the next step of the story mode
+    int story_step;        // the next step of the story mode
+    float story_last_time; // seconds of the last stage that the player drove in the story mode
     BestTime best[SETTINGS_MAX_BEST];
     int best_count;
 } Settings;
@@ -37,5 +39,11 @@ float SettingsBestTime(const Settings *settings, const char *level);
 
 // Keep a time when it is better than the best time of the level, return true when it is
 bool SettingsRecordTime(Settings *settings, const char *level, float seconds);
+
+// Keep a place when it is better than the best place of the level, return true when it is
+bool SettingsRecordPlace(Settings *settings, const char *level, int place);
+
+// Return the best place of a level, 0 when there is none
+int SettingsBestPlace(const Settings *settings, const char *level);
 
 #endif

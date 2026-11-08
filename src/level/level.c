@@ -58,6 +58,23 @@ bool LevelFindFirst(char *name, size_t size)
     return found;
 }
 
+void LevelReadDisplayName(const char *name, char *display_name, int size)
+{
+    snprintf(display_name, (size_t)size, "%s", name);
+    const char *path = TextFormat("%s/%s/%s", LEVELS_DIR, name, LEVEL_FILE);
+    char *text = FileExists(path) ? LoadFileText(path) : NULL;
+    if (text == NULL)
+    {
+        return;
+    }
+    char found[LEVEL_MAX_NAME];
+    if (JsonReadString(text, "display_name", found, sizeof(found)) && found[0] != '\0')
+    {
+        snprintf(display_name, (size_t)size, "%s", found);
+    }
+    UnloadFileText(text);
+}
+
 int LevelFindAll(char names[][LEVEL_MAX_NAME], int max)
 {
     int count = 0;
@@ -184,6 +201,13 @@ bool LevelLoad(Level *level, const char *name, char *message, size_t size)
     // A level without the closed key has an open curve
     JsonReadBool(text, "closed", &loaded.closed);
     JsonReadBool(text, "tutorial", &loaded.tutorial);
+    if (!JsonReadString(text, "display_name", loaded.display_name, LEVEL_MAX_NAME) || loaded.display_name[0] == '\0')
+    {
+        snprintf(loaded.display_name, sizeof(loaded.display_name), "%s", name);
+    }
+    JsonReadBool(text, "jelka_just_ahead", &loaded.jelka_just_ahead);
+    int times = JsonReadNumberArray(text, "times", loaded.times, LEVEL_RIVALS);
+    loaded.time_count = times > 0 ? times : 0;
 
     loaded.road_color = COLOR_ROAD;
     float road[3];

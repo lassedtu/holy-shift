@@ -121,3 +121,34 @@ const char *JsonSkip(const char *position, const char *skip)
     }
     return position;
 }
+
+bool JsonReadString(const char *text, const char *key, char *value, int size)
+{
+    const char *found = JsonFindKey(text, key);
+    if (found == NULL || size <= 0)
+    {
+        return false;
+    }
+    found = JsonSkip(found, "");
+    if (*found != '"')
+    {
+        return false;
+    }
+    found++;
+    int length = 0;
+    while (found[length] != '\0' && found[length] != '"')
+    {
+        length++;
+    }
+    if (found[length] != '"')
+    {
+        return false;
+    }
+    if (length >= size)
+    {
+        length = size - 1;
+    }
+    memcpy(value, found, (size_t)length);
+    value[length] = '\0';
+    return true;
+}

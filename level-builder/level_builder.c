@@ -53,6 +53,8 @@
 #define MAX_NAME 32
 #define JSON_NAME "level.json"
 #define PNG_NAME "level_logic.png"
+#define MAX_DISPLAY_NAME 40
+#define MAX_RIVALS 7 // the builder does not change the times of the other drivers, it only keeps them
 
 static const Color COLOR_OUTSIDE = {40, 150, 50, 255};
 static const Color COLOR_ROAD = {130, 90, 50, 255};
@@ -63,6 +65,10 @@ typedef struct
     int count;
     bool closed;   // the last point connects to the first point
     bool tutorial; // the game shows the hints of the tutorial on this level
+    char display_name[MAX_DISPLAY_NAME + 1]; // the name that the player sees, "" for the folder name
+    float times[MAX_RIVALS]; // seconds of the other drivers, kept as they are in the file
+    int time_count;
+    bool jelka_just_ahead;
     bool trees[TREE_SPECIES_COUNT]; // the species of trees around the road
     int road_width; // map pixels
 } Level;
@@ -221,9 +227,26 @@ static bool ExportLevel(const Level *level, const char *name, char *message,
             COLOR_ROAD.b);
     fprintf(file, "  },\n");
     fprintf(file, "  \"closed\": %s,\n", level->closed ? "true" : "false");
+    if (level->display_name[0] != '\0')
+    {
+        fprintf(file, "  \"display_name\": \"%s\",\n", level->display_name);
+    }
     if (level->tutorial)
     {
         fprintf(file, "  \"tutorial\": true,\n");
+    }
+    if (level->jelka_just_ahead)
+    {
+        fprintf(file, "  \"jelka_just_ahead\": true,\n");
+    }
+    if (level->time_count > 0)
+    {
+        fprintf(file, "  \"times\": [");
+        for (int i = 0; i < level->time_count; i++)
+        {
+            fprintf(file, "%s%.2f", i > 0 ? ", " : "", level->times[i]);
+        }
+        fprintf(file, "],\n");
     }
     fprintf(file, "  \"trees\": [");
     bool first_tree = true;
@@ -358,6 +381,36 @@ static bool LoadLevel(const char *name, Level *level, char *message,
     const char *closed = FindKey(text, "closed");
     const char *tutorial = FindKey(text, "tutorial");
     loaded.tutorial = tutorial != NULL && strncmp(SkipTo(tutorial, ""), "true", 4) == 0;
+    const char *display = FindKey(text, "display_name");
+    if (display != NULL && *SkipTo(display, "") == '"')
+    {
+        const char *start = SkipTo(display, "") + 1;
+        int length = 0;
+        while (start[length] != '\0' && start[length] != '"' && length < MAX_DISPLAY_NAME)
+        {
+            loaded.display_name[length] = start[length];
+            length++;
+        }
+        loaded.display_name[length] = '\0';
+    }
+    const char *ahead = FindKey(text, "jelka_just_ahead");
+    loaded.jelka_just_ahead = ahead != NULL && strncmp(SkipTo(ahead, ""), "true", 4) == 0;
+    const char *times = FindKey(text, "times");
+    if (times != NULL && *SkipTo(times, "") == '[')
+    {
+        const char *position = SkipTo(times, "") + 1;
+        while (loaded.time_count < MAX_RIVALS)
+        {
+            char *end;
+            float value = strtof(SkipTo(position, ","), &end);
+            if (end == SkipTo(position, ","))
+            {
+                break;
+            }
+            loaded.times[loaded.time_count++] = value;
+            position = end;
+        }
+    }
     if (closed != NULL)
     {
         loaded.closed = strncmp(SkipTo(closed, ""), "true", 4) == 0;
@@ -483,6 +536,9 @@ int main(void)
     }
     float road_x = 440.0f + TREE_SPECIES_COUNT * 76.0f + 8.0f;
     Rectangle road_slider = {road_x + 115.0f, 6, 120, TOOLBAR_H - 12}; // the area that takes clicks
+    Rectangle display_box = {road_slider.x + road_slider.width + 10.0f, 6, 170, TOOLBAR_H - 12};
+    Rectangle tutorial_box = {display_box.x + display_box.width + 10.0f, 6, 90, TOOLBAR_H - 12};
+    bool display_focus = false;
     bool road_drag = false;
     char name[MAX_NAME + 1] = "level1";
     int name_length = (int)strlen(name);
@@ -511,7 +567,7 @@ int main(void)
             zoom_factor *= powf(ZOOM_WHEEL_STEP, wheel.y);
             wheel = (Vector2){0, 0};
         }
-        if (!name_focus)
+        if (!name_focus && !display_focus)
         {
             // Read characters instead of key codes to match the keyboard layout
             int key = GetCharPressed();
@@ -595,8 +651,30 @@ int main(void)
                 name_focus = false;
         }
 
+        // Type the display name, all printable characters but quotes and backslashes are valid
+        if (display_focus)
+        {
+            int length = (int)strlen(level.display_name);
+            int key = GetCharPressed();
+            while (key > 0)
+            {
+                if (key >= 32 && key < 127 && key != '"' && key != '\\' && length < MAX_DISPLAY_NAME)
+                {
+                    level.display_name[length++] = (char)key;
+                    level.display_name[length] = '\0';
+                }
+                key = GetCharPressed();
+            }
+            if ((IsKeyPressed(KEY_BACKSPACE) || IsKeyPressedRepeat(KEY_BACKSPACE)) && length > 0)
+            {
+                level.display_name[--length] = '\0';
+            }
+            if (IsKeyPressed(KEY_ENTER))
+                display_focus = false;
+        }
+
         bool changed = false;
-        if (!name_focus && command &&
+        if (!name_focus && !display_focus && command &&
             (IsKeyPressed(KEY_Z) || IsKeyPressedRepeat(KEY_Z)) &&
             PopUndo(&level))
         {
@@ -605,6 +683,7 @@ int main(void)
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
         {
             name_focus = CheckCollisionPointRec(mouse, name_box);
+            display_focus = CheckCollisionPointRec(mouse, display_box);
             int clicked_tree = -1;
             for (int i = 0; i < TREE_SPECIES_COUNT; i++)
             {
@@ -620,6 +699,11 @@ int main(void)
             {
                 PushUndo(&level);
                 level.trees[clicked_tree] = !level.trees[clicked_tree];
+            }
+            else if (CheckCollisionPointRec(mouse, tutorial_box))
+            {
+                PushUndo(&level);
+                level.tutorial = !level.tutorial;
             }
             else if (CheckCollisionPointRec(mouse, export_button))
             {
@@ -753,6 +837,30 @@ int main(void)
             int cursor_x = (int)name_box.x + 8 + MeasureText(name, 18) + 1;
             DrawRectangle(cursor_x, (int)name_box.y + 5, 2, 20, WHITE);
         }
+        DrawRectangleRec(display_box, (Color){15, 15, 15, 255});
+        DrawRectangleLinesEx(display_box, 1.0f, display_focus ? YELLOW : GRAY);
+        if (level.display_name[0] == '\0' && !display_focus)
+        {
+            DrawText("Display name", (int)display_box.x + 8, (int)display_box.y + 6, 18, DARKGRAY);
+        }
+        else
+        {
+            DrawText(level.display_name, (int)display_box.x + 8, (int)display_box.y + 6, 18, WHITE);
+        }
+        if (display_focus && fmodf((float)GetTime(), 1.0f) < 0.5f)
+        {
+            int cursor_x = (int)display_box.x + 8 + MeasureText(level.display_name, 18) + 1;
+            DrawRectangle(cursor_x, (int)display_box.y + 5, 2, 20, WHITE);
+        }
+        bool over_tutorial = CheckCollisionPointRec(mouse, tutorial_box);
+        DrawRectangleRec(tutorial_box, over_tutorial ? (Color){90, 90, 90, 255} : (Color){60, 60, 60, 255});
+        Rectangle check = {tutorial_box.x + 8, tutorial_box.y + 7, 14, 14};
+        DrawRectangleLinesEx(check, 2.0f, WHITE);
+        if (level.tutorial)
+        {
+            DrawRectangle((int)check.x + 4, (int)check.y + 4, 6, 6, YELLOW);
+        }
+        DrawText("Tutorial", (int)check.x + 20, (int)tutorial_box.y + 6, 18, WHITE);
         for (int i = 0; i < TREE_SPECIES_COUNT; i++)
         {
             bool over_tree = CheckCollisionPointRec(mouse, tree_buttons[i]);

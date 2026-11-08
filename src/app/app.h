@@ -7,6 +7,7 @@
 #include "core/options.h"
 #include "core/settings.h"
 #include "game/game.h"
+#include "game/standings.h"
 #include "story/scene_player.h"
 #include "story/story.h"
 #include "ui/ui.h"
@@ -42,6 +43,9 @@ typedef struct App
     bool cursor_hidden;
     float menu_time;
     bool new_best;
+    Standings standings; // the result of the last stage
+    bool final_stage;    // the stage was the last stage of the story, only a win goes on
+    bool qualified;      // the place is good enough to go on in the story
     bool quit;
 
     Story story;
@@ -50,7 +54,8 @@ typedef struct App
     ScenePlayer scene;
     bool scene_playing;
 
-    char levels[APP_MAX_LEVELS][LEVEL_MAX_NAME];
+    char levels[APP_MAX_LEVELS][LEVEL_MAX_NAME];        // the folder names
+    char level_titles[APP_MAX_LEVELS][LEVEL_MAX_NAME];  // the display names
     int level_count;
     char message[256]; // an error that the menu shows
 } App;

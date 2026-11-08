@@ -7,7 +7,8 @@
 
 // Draw the information for the player in an area of the window
 // The stage can be NULL, then only the car is shown
-void HudDraw(const Car *car, const Stage *stage, Rectangle destination);
+// The title is the name of the stage, it shows during the countdown, NULL for no title
+void HudDraw(const Car *car, const Stage *stage, const char *title, Rectangle destination);
 
 // Return a time in seconds as text, for example "1:02.37"
 const char *HudFormatTime(float seconds);

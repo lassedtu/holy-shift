@@ -2,7 +2,7 @@
 #   scene <name>   play assets/story/scenes/<name>.scene
 #   stage <name>   drive the level levels/<name>
 #
-# All stages are test-level until the real stages exist. The name of the real stage is in the comment.
+# All stages are village_road until the real stages exist. The name of the real stage is in the comment.
 #
 # The story in short:
 #   Zlo wants to buy the village bingo hall and make it a datacenter. Rajka, a rally champion of the
@@ -15,22 +15,22 @@
 # The past is told in three flashbacks: the glory days (02), the crash (06), and the fight after it (06).
 
 scene 00_intro
-stage test-level        # 0: village_road, the tutorial, day
+stage village_road        # 0: village_road, the tutorial, day
 
 scene 01_club_rally
-stage test-level        # 1: club_rally, the map, day
+stage club_rally        # 1: club_rally, the map, day
 
 scene 02_glory_days
-stage test-level        # 2: forest, map events start (the sick bag), overcast
+stage village_road        # 2: forest, map events start (the sick bag), overcast
 
 scene 03_sick_bag
 scene 04_mud
-stage test-level        # 3: mud, the grip changes, rain
+stage village_road        # 3: mud, the grip changes, rain
 
 scene 05_night_talk
-stage test-level        # 4: night, a light for the map, night
+stage village_road        # 4: night, a light for the map, night
 
 scene 06_the_lake
-stage test-level        # 5: lake, the final, Rajka must win, dusk
+stage village_road        # 5: lake, the final, Rajka must win, dusk
 
 scene 07_ending
