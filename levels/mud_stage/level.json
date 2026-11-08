@@ -20,6 +20,7 @@
   "display_name": "Mud Stage",
   "theme": "mud",
   "time_of_day": "rain",
+  "map_events": ["shake", "sick", "upside_down"],
   "music": "riptide.ogg",
   "times_easy": [102.15, 107.18, 112.20, 117.23, 123.09, 128.95, 135.65],
   "times": [87.92, 93.78, 99.64, 104.67, 109.69, 114.71, 121.41],

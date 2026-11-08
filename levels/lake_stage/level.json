@@ -12,6 +12,7 @@
   "display_name": "Lake Stage",
   "theme": "lakeside",
   "time_of_day": "dusk",
+  "map_events": ["shake"],
   "music": "what_you_want.ogg",
   "times_easy": [153.64, 161.19, 168.75, 176.31, 185.12, 193.94, 204.01],
   "times": [132.23, 141.04, 149.86, 157.42, 164.97, 172.53, 182.60],

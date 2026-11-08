@@ -5,6 +5,7 @@
 #include <stddef.h>
 
 #include "raylib.h"
+#include "render/vomit.h"
 
 #define COCKPIT_MAX_WHEEL_FRAMES 16
 
@@ -30,6 +31,8 @@ typedef struct Cockpit
     Texture2D wheel;
     Shader shader;
     CockpitMetrics metrics;
+    RenderTexture2D glass; // what is on the windshield, at half the size of the panorama
+    bool glass_used;       // false when the glass picture is empty
 } Cockpit;
 
 // Load the cabin images, write the reason in message when it fails
@@ -38,6 +41,9 @@ void CockpitUnload(Cockpit *cockpit);
 
 // Find the limits of the head pitch, in degrees, where the view stays in the panorama
 void CockpitPitchLimits(const Cockpit *cockpit, float *pitch_min, float *pitch_max);
+
+// Draw the splashes on the windshield into the glass picture, before BeginDrawing
+void CockpitRenderGlass(Cockpit *cockpit, const VomitBlob *blobs, int count);
 
 // Draw the cabin over an area of the window
 // The head yaw and the head pitch are in degrees, the steer is from -1 (full left) to 1 (full right)

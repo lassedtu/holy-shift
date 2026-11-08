@@ -6,6 +6,7 @@
 
 #include "core/difficulty.h"
 #include "level/ground_theme.h"
+#include "level/map_event_type.h"
 #include "level/time_of_day.h"
 #include "level/tree_species.h"
 #include "raylib.h"
@@ -38,6 +39,7 @@ typedef struct Level
     GroundTheme ground_theme;       // the look of the ground, GROUND_FOREST when the file has no theme
     TimeOfDay time_of_day;          // the light of the stage, TIME_DAY when the file has no time of day
     char music[LEVEL_MAX_NAME];     // the file in MUSIC_DIR that plays while driving, "" for no music
+    bool map_events[MAP_EVENT_TYPE_COUNT]; // the trouble that Luka makes with the map on this level
 } Level;
 
 // Load a level by its folder name, write the reason in message when it fails

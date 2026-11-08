@@ -8,14 +8,14 @@
 #include "ui/text.h"
 #include "util/math_util.h"
 
-#define PAPER_WIDTH 304 // texture pixels, about one for each game pixel when the map is in the middle of the view
-#define PAPER_HEIGHT 448
+#define PAPER_WIDTH PACE_MAP_PAPER_WIDTH
+#define PAPER_HEIGHT PACE_MAP_PAPER_HEIGHT
 #define NOTE_HEIGHT 148 // height of the text area at the bottom of the paper
 #define MARK_SIZE FONT_GRID // pixel sizes of the text, multiples of FONT_GRID are sharp
 #define CALL_SIZE (2 * FONT_GRID)
 #define NOTE_SIZE FONT_GRID
 #define MAP_SCALE 0.34f // paper pixels for each map pixel
-#define CAR_Y 256.0f    // the car is this far down on the paper
+#define CAR_Y PACE_MAP_CAR_Y
 #define DRAW_BEHIND 80.0f // the road is drawn this far behind the car, in map pixels
 #define DRAW_AHEAD 900.0f // and this far ahead of the car
 #define DRAW_STEP 8.0f
@@ -35,6 +35,9 @@
 #define SWAY_ROLL_DEG 1.2f
 #define SWAY_BOB 0.004f
 #define VISIBLE_MARGIN_DEG 5.0f // extra angle for the sway of the map
+#define CLOSER 0.5f              // a map that is held closer is this part nearer to the eye
+#define FLIP_MIN_WIDTH 0.2f      // while the map turns around, it keeps at least this part of its width
+#define COLOR_PAPER_BACK ((Color){204, 194, 168, 255}) // the blank back of the map
 
 #define COLOR_PAPER ((Color){226, 214, 184, 255})
 #define COLOR_PAPER_DARK ((Color){196, 182, 150, 255})
@@ -256,14 +259,20 @@ static void RenderView(PaceMap *map, float head_yaw, float head_pitch)
     Vector3 forward = Direction(HOLD_YAW_DEG, HOLD_ELEVATION_DEG);
     Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, (Vector3){0.0f, 1.0f, 0.0f}));
     Vector3 up = Vector3CrossProduct(right, forward);
-    float roll = (HOLD_ROLL_DEG + SWAY_ROLL_DEG * sinf(map->time * 1.3f)) * DEG2RAD;
+    float roll = (HOLD_ROLL_DEG + SWAY_ROLL_DEG * sinf(map->time * 1.3f) + map->pose.roll_deg) * DEG2RAD;
     right = Vector3RotateByAxisAngle(right, forward, roll);
     up = Vector3RotateByAxisAngle(up, forward, roll);
 
-    float half_width = HOLD_WIDTH / 2.0f;
-    float half_height = half_width * PAPER_HEIGHT / PAPER_WIDTH;
-    Vector3 center = Vector3Scale(forward, HOLD_DISTANCE);
-    center = Vector3Add(center, Vector3Scale(up, SWAY_BOB * sinf(map->time * 2.1f)));
+    // Peeking turns the map around: it gets narrow, shows its back from the half way, and gets wide again
+    // It is never narrower than FLIP_MIN_WIDTH, because nothing is behind the map (Luka has no model)
+    bool back = map->pose.flip > 0.5f;
+    float squeeze = fmaxf(fabsf(cosf(map->pose.flip * PI)), FLIP_MIN_WIDTH);
+
+    float half_height = HOLD_WIDTH / 2.0f * PAPER_HEIGHT / PAPER_WIDTH;
+    float half_width = HOLD_WIDTH / 2.0f * squeeze;
+    Vector3 center = Vector3Scale(forward, HOLD_DISTANCE * (1.0f - CLOSER * map->pose.closer));
+    center = Vector3Add(center, Vector3Scale(up, SWAY_BOB * sinf(map->time * 2.1f) + map->pose.offset.y));
+    center = Vector3Add(center, Vector3Scale(right, map->pose.offset.x));
     Vector3 r = Vector3Scale(right, half_width);
     Vector3 u = Vector3Scale(up, half_height);
     Vector3 top_left = Vector3Subtract(Vector3Add(center, u), r);
@@ -276,9 +285,16 @@ static void RenderView(PaceMap *map, float head_yaw, float head_pitch)
     BeginMode3D(camera);
     rlDisableBackfaceCulling();
     // A render texture is upside down, so the top of the paper is at v = 1
-    rlSetTexture(map->paper.texture.id);
+    rlSetTexture(back ? rlGetTextureIdDefault() : map->paper.texture.id);
     rlBegin(RL_QUADS);
-    rlColor4ub(map->light.r, map->light.g, map->light.b, 255);
+    Color tint = map->light;
+    if (back)
+    {
+        tint = (Color){(unsigned char)(COLOR_PAPER_BACK.r * map->light.r / 255),
+                       (unsigned char)(COLOR_PAPER_BACK.g * map->light.g / 255),
+                       (unsigned char)(COLOR_PAPER_BACK.b * map->light.b / 255), 255};
+    }
+    rlColor4ub(tint.r, tint.g, tint.b, 255);
     rlTexCoord2f(0.0f, 1.0f);
     rlVertex3f(top_left.x, top_left.y, top_left.z);
     rlTexCoord2f(0.0f, 0.0f);
@@ -296,14 +312,15 @@ static void RenderView(PaceMap *map, float head_yaw, float head_pitch)
 
 // Return true when a part of the map can be in the view
 // The angle from the middle of the view to its corner is compared with the angle from the middle of the map to its corner
-static bool IsVisible(float head_yaw, float head_pitch)
+static bool IsVisible(float head_yaw, float head_pitch, float closer)
 {
     float half_width = tanf(VIEW_HFOV_DEG * 0.5f * DEG2RAD);
     float half_height = half_width * VIEW_HEIGHT / VIEW_WIDTH;
     float view_corner = atanf(sqrtf(half_width * half_width + half_height * half_height));
     float map_half_width = HOLD_WIDTH / 2.0f;
     float map_half_height = map_half_width * PAPER_HEIGHT / PAPER_WIDTH;
-    float map_corner = atanf(sqrtf(map_half_width * map_half_width + map_half_height * map_half_height) / HOLD_DISTANCE);
+    float distance = HOLD_DISTANCE * (1.0f - CLOSER * closer);
+    float map_corner = atanf(sqrtf(map_half_width * map_half_width + map_half_height * map_half_height) / distance);
     float angle = acosf(Clamp(Vector3DotProduct(Direction(head_yaw, -head_pitch),
                                                 Direction(HOLD_YAW_DEG, HOLD_ELEVATION_DEG)),
                               -1.0f, 1.0f));
@@ -313,7 +330,7 @@ static bool IsVisible(float head_yaw, float head_pitch)
 void PaceMapRender(PaceMap *map, const Track *track, const PaceNotes *notes, const Car *car,
                    float head_yaw, float head_pitch)
 {
-    map->visible = IsVisible(head_yaw, head_pitch);
+    map->visible = IsVisible(head_yaw, head_pitch, map->pose.closer);
     if (!map->visible)
     {
         return;

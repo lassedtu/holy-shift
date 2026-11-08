@@ -28,6 +28,7 @@
 
 #include "core/difficulty.h"
 #include "level/ground_theme.h"
+#include "level/map_event_type.h"
 #include "level/time_of_day.h"
 #include "level/tree_species.h"
 #include "raylib.h"
@@ -90,6 +91,7 @@ typedef struct
     GroundTheme theme;              // the look of the ground in the game
     TimeOfDay time_of_day;          // the light of the stage in the game
     char music[64];                 // the music file in assets/music/ while driving, "" for no music, kept as it is
+    bool map_events[MAP_EVENT_TYPE_COUNT]; // Luka's map events, kept as they are
     int road_width; // map pixels
 } Level;
 
@@ -265,6 +267,23 @@ static bool ExportLevel(const Level *level, const char *name, char *message,
     {
         fprintf(file, "  \"music\": \"%s\",\n", level->music);
     }
+    bool any_event = false;
+    for (int i = 0; i < MAP_EVENT_TYPE_COUNT; i++)
+        any_event = any_event || level->map_events[i];
+    if (any_event)
+    {
+        fprintf(file, "  \"map_events\": [");
+        bool first = true;
+        for (int i = 0; i < MAP_EVENT_TYPE_COUNT; i++)
+        {
+            if (level->map_events[i])
+            {
+                fprintf(file, "%s\"%s\"", first ? "" : ", ", MAP_EVENT_NAMES[i]);
+                first = false;
+            }
+        }
+        fprintf(file, "],\n");
+    }
     for (int d = 0; d < DIFFICULTY_COUNT; d++)
     {
         if (level->time_count[d] == 0)
@@ -422,6 +441,17 @@ static bool LoadLevel(const char *name, Level *level, char *message,
         char time_name[32] = "";
         sscanf(SkipTo(time, "") + 1, "%31[^\"]", time_name);
         loaded.time_of_day = TimeOfDayFind(time_name);
+    }
+    const char *events = FindKey(text, "map_events");
+    events = events == NULL ? NULL : strchr(events, '[');
+    if (events != NULL)
+    {
+        const char *events_end = strchr(events, ']');
+        for (int i = 0; i < MAP_EVENT_TYPE_COUNT; i++)
+        {
+            const char *entry = strstr(events, TextFormat("\"%s\"", MAP_EVENT_NAMES[i]));
+            loaded.map_events[i] = entry != NULL && events_end != NULL && entry < events_end;
+        }
     }
     const char *music = FindKey(text, "music");
     if (music != NULL && *SkipTo(music, "") == '"')

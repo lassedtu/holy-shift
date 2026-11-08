@@ -21,6 +21,7 @@
   "display_name": "Club Rally",
   "theme": "autumn",
   "time_of_day": "day",
+  "map_events": ["shake"],
   "music": "motherlode.ogg",
   "times_easy": [76.21, 79.96, 83.71, 87.46, 91.83, 96.20, 101.20],
   "times": [65.59, 69.97, 74.34, 78.09, 81.83, 85.58, 90.58],

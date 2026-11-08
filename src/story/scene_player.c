@@ -7,6 +7,7 @@
 
 #include "core/config.h"
 #include "ui/hud.h"
+#include "ui/typing.h"
 
 #define PICTURE_WIDTH (VIEW_WIDTH / STORY_PICTURE_SCALE) // picture pixels on the screen
 #define DIALOGUE_BAND 120 // height of the dark area for the dialogue at the bottom, in game pixels
@@ -16,10 +17,6 @@
 #define FADE_SECONDS 0.6f  // the screen fades to black or back in this time
 #define ALONE_SECONDS 1.6f // a new picture shows without the dialogue box for this time, the fade in is part of it
 #define BOX_SLIDE_SECONDS 0.25f
-#define LETTER_SECONDS 0.032f  // the time of a letter while a line is typed
-#define COMMA_SECONDS 0.16f    // the pause after , ; and :
-#define STOP_SECONDS 0.32f     // the pause after . ! and ?
-#define DASH_SECONDS 0.12f
 #define TEXT_SIZE 27
 #define HINT_SIZE 15
 #define LINE_SPACING 0.8f // the distance between two lines of text, as part of the size of the text
@@ -294,27 +291,6 @@ static void UpdatePan(ScenePicture *picture, float dt)
                                 picture->pan_from.y + (picture->pan_to.y - picture->pan_from.y) * t};
 }
 
-// Return the time of a letter of a line before the next letter: punctuation makes a pause, so the line reads like speech
-// A run of the same mark ("..." or "?!") pauses only after the last mark
-static float LetterSeconds(const char *text, int index)
-{
-    char letter = text[index];
-    char next = text[index + 1];
-    if (strchr(".!?", letter) != NULL)
-    {
-        return strchr(".!?", next) != NULL && next != '\0' ? LETTER_SECONDS * 3.0f : STOP_SECONDS;
-    }
-    if (strchr(",;:", letter) != NULL)
-    {
-        return COMMA_SECONDS;
-    }
-    if (letter == '-')
-    {
-        return DASH_SECONDS;
-    }
-    return LETTER_SECONDS;
-}
-
 void ScenePlayerUpdate(ScenePlayer *player, float dt, bool advance, bool skip)
 {
     if (player->done)
@@ -376,7 +352,7 @@ void ScenePlayerUpdate(ScenePlayer *player, float dt, bool advance, bool skip)
         player->letter_wait -= dt;
         while (player->letter_wait <= 0.0f && player->typed < length)
         {
-            player->letter_wait += LetterSeconds(command->text, (int)player->typed);
+            player->letter_wait += TypingLetterSeconds(command->text, (int)player->typed);
             player->typed += 1.0f;
         }
         if (advance && player->typed < length)

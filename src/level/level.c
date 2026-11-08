@@ -249,6 +249,10 @@ bool LevelLoad(Level *level, const char *name, char *message, size_t size)
     char time[32];
     loaded.time_of_day = JsonReadString(text, "time_of_day", time, sizeof(time)) ? TimeOfDayFind(time) : TIME_DAY;
     JsonReadString(text, "music", loaded.music, sizeof(loaded.music));
+    for (int i = 0; i < MAP_EVENT_TYPE_COUNT; i++)
+    {
+        JsonArrayHasString(text, "map_events", MAP_EVENT_NAMES[i], &loaded.map_events[i]);
+    }
     for (int d = 0; d < DIFFICULTY_COUNT; d++)
     {
         int times = JsonReadNumberArray(text, DIFFICULTY_RULES[d].times_key, loaded.times[d], LEVEL_RIVALS);

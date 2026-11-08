@@ -974,6 +974,7 @@ void AppFrame(App *app)
     if (app->screen == SCREEN_PLAYING)
     {
         HintsDraw(&game->hints, &app->ui);
+        SpeechDraw(&game->speech, &app->ui);
     }
     switch (app->screen)
     {

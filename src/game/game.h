@@ -14,6 +14,7 @@
 #include "core/game_mode.h"
 #include "core/options.h"
 #include "game/hints.h"
+#include "game/map_events.h"
 #include "game/stage.h"
 #include "level/forest.h"
 #include "level/level.h"
@@ -24,6 +25,7 @@
 #include "render/cockpit.h"
 #include "render/mode7.h"
 #include "render/rain.h"
+#include "ui/speech.h"
 #include "render/pace_map.h"
 #include "render/trees.h"
 
@@ -66,6 +68,8 @@ typedef struct Game
     Rain rain;
     Cockpit cockpit;
     PaceMap map;
+    MapEvents map_events;
+    Speech speech; // what Rajka and Luka say while driving
     Hints hints; // the hints of a tutorial level
     CarAudio audio;
 } Game;

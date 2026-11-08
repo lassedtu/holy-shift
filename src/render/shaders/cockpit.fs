@@ -18,6 +18,7 @@ uniform vec4 wheelRect;  // x, y, width and height of a wheel frame in panorama 
 uniform float wheelFrame;
 uniform vec2 wheelAtlasSize;
 uniform vec3 tint; // the light in the cabin
+uniform sampler2D glassTex; // what is on the windshield, in the same place as the panorama, upside down
 
 out vec4 finalColor;
 
@@ -38,6 +39,12 @@ void main()
     if (uv.x >= 0.0 && uv.x <= 1.0 && uv.y >= 0.0 && uv.y <= 1.0)
     {
         base = textureLod(panorama, uv, 0.0);
+        // The glass is see-through, only there the splashes on the windshield show
+        if (base.a < 0.6)
+        {
+            vec4 glass = textureLod(glassTex, vec2(uv.x, 1.0 - uv.y), 0.0);
+            base = vec4(mix(base.rgb, glass.rgb, glass.a), mix(base.a, 1.0, glass.a));
+        }
     }
 
     vec4 wheel = vec4(0.0);

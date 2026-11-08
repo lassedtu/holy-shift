@@ -7,6 +7,8 @@
 #include "render/shader_util.h"
 #include "util/json_lite.h"
 
+#define GLASS_SCALE 0.5f // the picture of the windshield is this part of the size of the panorama
+
 static bool ReadMetrics(CockpitMetrics *metrics, char *message, size_t size)
 {
     char *text = FileExists(COCKPIT_METRICS_PATH) ? LoadFileText(COCKPIT_METRICS_PATH) : NULL;
@@ -99,11 +101,61 @@ bool CockpitLoad(Cockpit *cockpit, char *message, size_t size)
                   (float)metrics->wheel_frame_width, (float)metrics->wheel_frame_height);
     ShaderSetVec2(shader, "wheelAtlasSize", (float)cockpit->wheel.width,
                   (float)cockpit->wheel.height);
+
+    cockpit->glass = LoadRenderTexture((int)(cockpit->panorama.width * GLASS_SCALE),
+                                       (int)(cockpit->panorama.height * GLASS_SCALE));
+    if (!IsRenderTextureValid(cockpit->glass))
+    {
+        snprintf(message, size, "Could not make the picture of the windshield");
+        CockpitUnload(cockpit);
+        return false;
+    }
+    SetTextureFilter(cockpit->glass.texture, TEXTURE_FILTER_POINT);
+    BeginTextureMode(cockpit->glass);
+    ClearBackground(BLANK);
+    EndTextureMode();
     return true;
+}
+
+void CockpitRenderGlass(Cockpit *cockpit, const VomitBlob *blobs, int count)
+{
+    bool any = false;
+    for (int i = 0; i < count; i++)
+    {
+        any = any || blobs[i].alive;
+    }
+    if (!any && !cockpit->glass_used)
+    {
+        return;
+    }
+    // A place on the glass in degrees becomes a place in the panorama, then the glass picture is half that size
+    const CockpitMetrics *metrics = &cockpit->metrics;
+    float ppd = metrics->px_per_deg;
+    BeginTextureMode(cockpit->glass);
+    ClearBackground(BLANK);
+    BeginMode2D((Camera2D){.zoom = GLASS_SCALE});
+    for (int i = 0; i < count; i++)
+    {
+        const VomitBlob *blob = &blobs[i];
+        if (!blob->alive)
+        {
+            continue;
+        }
+        Vector2 center = {(blob->position.x - metrics->yaw_min_deg) * ppd,
+                          (metrics->lat_top_deg + blob->position.y) * ppd};
+        VomitDraw(center, blob->radius * ppd, blob->seed, blob->radius > VOMIT_BIG, 1.0f);
+    }
+    EndMode2D();
+    EndTextureMode();
+    cockpit->glass_used = any;
 }
 
 void CockpitUnload(Cockpit *cockpit)
 {
+    if (IsRenderTextureValid(cockpit->glass))
+    {
+        UnloadRenderTexture(cockpit->glass);
+    }
     if (IsShaderValid(cockpit->shader))
     {
         UnloadShader(cockpit->shader);
@@ -164,6 +216,7 @@ void CockpitDraw(const Cockpit *cockpit, Rectangle destination, float head_yaw, 
     BeginShaderMode(shader);
     ShaderSetTexture(shader, "panorama", cockpit->panorama);
     ShaderSetTexture(shader, "wheelTex", cockpit->wheel);
+    ShaderSetTexture(shader, "glassTex", cockpit->glass.texture);
     DrawRectangle((int)destination.x, (int)destination.y, (int)destination.width,
                   (int)destination.height, WHITE);
     EndShaderMode();

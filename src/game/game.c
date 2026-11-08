@@ -21,6 +21,8 @@ static void RestartStage(Game *game, bool fade)
     StageStart(&game->stage, &game->track, false);
     PaceMapReset(&game->map, &game->track, &game->car);
     HintsReset(&game->hints);
+    MapEventsReset(&game->map_events);
+    SpeechClear(&game->speech);
     game->crash_time = -1.0f;
     game->fade_in = fade ? RESTART_FADE_SECONDS : 0.0f;
     CarAudioSetPlaying(&game->audio, true);
@@ -127,6 +129,8 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
         game->head.pitch = Clamp(options->pitch_deg, game->head.pitch_min, game->head.pitch_max);
     }
     PaceMapReset(&game->map, &game->track, &game->car);
+    MapEventsInit(&game->map_events, &game->level, game->difficulty);
+    SpeechInit(&game->speech);
     RainInit(&game->rain, (Mode7Camera){game->car.position, game->car.heading, game->head.pitch, game->car.heading});
     HintsInit(&game->hints, game->level.tutorial && game->mode == GAME_MODE_NORMAL, DIFFICULTY_RULES[game->difficulty].map);
     CarAudioInit(&game->audio, &game->car);
@@ -139,6 +143,7 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
 
 void GameShutdown(Game *game)
 {
+    SpeechUnload(&game->speech);
     CarAudioUnload(&game->audio);
     PaceMapUnload(&game->map);
     HintsUnload(&game->hints);
@@ -232,6 +237,26 @@ void GameUpdate(Game *game, float dt)
         }
     }
     PaceMapUpdate(&game->map, &game->track, &game->car, dt);
+    if (game->mode == GAME_MODE_NORMAL && !crashed)
+    {
+        MapEvents *events = &game->map_events;
+        MapEventsUpdate(events, &game->stage, game->car.speed, game->car.heading, dt);
+        game->map.pose = events->pose;
+        // When the map changes, the reaction comes at once, the warning line of Luka is cut off
+        if (events->cue == MAP_CUE_START)
+        {
+            SpeechClear(&game->speech);
+        }
+        SpeechLine line;
+        for (int i = 0; i < 2; i++)
+        {
+            if (MapEventsLine(events, i, &line))
+            {
+                SpeechSay(&game->speech, line);
+            }
+        }
+        SpeechUpdate(&game->speech, dt);
+    }
     if (!crashed)
     {
         UpdateHints(game, dt);
@@ -267,6 +292,7 @@ void GameRender(Game *game)
                                game->head.pitch, game->car.heading};
     }
     Mode7Render(&game->mode7, game->textures.visual, camera, game->light);
+    CockpitRenderGlass(&game->cockpit, game->map_events.vomit, game->map_events.vomit_count);
     TreesRender(&game->trees, &game->forest, game->mode7.target, camera, game->light);
     // The rain also falls behind the menus, so it moves with the frame time and not with the game
     if (game->light->rain)
