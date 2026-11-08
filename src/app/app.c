@@ -42,6 +42,53 @@ static Difficulty CurrentDifficulty(const App *app)
     return app->options.has_difficulty ? app->options.difficulty : app->settings.difficulty;
 }
 
+// Write the path of the music that the scene asks for now, "" when it asks for none
+static void SceneMusicPath(const App *app, char *path, size_t size)
+{
+    const char *music = app->screen == SCREEN_SCENE && app->scene_playing ? app->scene.music : "";
+    path[0] = '\0';
+    if (music[0] != '\0')
+    {
+        snprintf(path, size, "%s/%s", MUSIC_DIR, music);
+    }
+}
+
+// Play the music that the scene asks for. A new track starts after the old track has faded out
+// The menu track is played by the menu player, so it goes on from the menu into a scene without a break
+static void UpdateSceneMusic(App *app, float dt)
+{
+    char path[256];
+    SceneMusicPath(app, path, sizeof(path));
+    if (strcmp(path, app->menu_music.path) == 0)
+    {
+        path[0] = '\0';
+    }
+    bool same = strcmp(path, app->scene_music.path) == 0;
+    if (!same && app->scene_music.volume <= 0.0f)
+    {
+        MusicPlayerUnload(&app->scene_music);
+        MusicPlayerLoad(&app->scene_music, path, MUSIC_SCENE_VOLUME);
+        same = true;
+    }
+    MusicPlayerUpdate(&app->scene_music, same && path[0] != '\0', app->settings.music_volume, dt);
+}
+
+// Load the music of the level of the game, when it is not the track that is loaded
+static void LoadDriveMusic(App *app)
+{
+    const char *music = app->game.level.music;
+    char path[256] = "";
+    if (music[0] != '\0')
+    {
+        snprintf(path, sizeof(path), "%s/%s", MUSIC_DIR, music);
+    }
+    if (strcmp(path, app->drive_music.path) != 0)
+    {
+        MusicPlayerUnload(&app->drive_music);
+        MusicPlayerLoad(&app->drive_music, path, MUSIC_DRIVE_VOLUME);
+    }
+}
+
 static bool LoadStage(App *app, const char *name)
 {
     Difficulty difficulty = CurrentDifficulty(app);
@@ -63,6 +110,7 @@ static bool LoadStage(App *app, const char *name)
     if (app->game_ready)
     {
         app->game.crash_menu = true;
+        LoadDriveMusic(app);
     }
     return app->game_ready;
 }
@@ -246,6 +294,7 @@ bool AppInit(App *app, const Options *options, char *message, size_t size)
     {
         return false;
     }
+    MusicPlayerLoad(&app->menu_music, MUSIC_MENU_PATH, MUSIC_MENU_VOLUME);
     app->level_count = LevelFindAll(app->levels, APP_MAX_LEVELS);
     for (int i = 0; i < app->level_count; i++)
     {
@@ -269,6 +318,7 @@ bool AppInit(App *app, const Options *options, char *message, size_t size)
         }
         app->game.crash_menu = options->mode == GAME_MODE_NORMAL;
         app->screen = SCREEN_PLAYING;
+        LoadDriveMusic(app);
         return true;
     }
 
@@ -292,6 +342,9 @@ bool AppInit(App *app, const Options *options, char *message, size_t size)
 void AppShutdown(App *app)
 {
     StopScene(app);
+    MusicPlayerUnload(&app->menu_music);
+    MusicPlayerUnload(&app->drive_music);
+    MusicPlayerUnload(&app->scene_music);
     if (app->game_ready)
     {
         GameShutdown(&app->game);
@@ -598,8 +651,8 @@ static void SettingsScreen(App *app)
     Settings *settings = &app->settings;
     UiDim(ui, 0.5f);
     float width = 280.0f;
-    float top = 100.0f;
-    ColumnPanel(app, top, 6, width, 36.0f);
+    float top = 78.0f;
+    ColumnPanel(app, top, 7, width, 36.0f);
     UiTextCentered(ui, "SETTINGS", VIEW_WIDTH / 2.0f, top - 40.0f, HEADING_SIZE, COLOR_INK);
 
     bool changed = false;
@@ -612,17 +665,22 @@ static void SettingsScreen(App *app)
         settings->volume = percent / 100.0f;
         changed = true;
     }
-    changed |= UiToggle(ui, ButtonAt(top, 3, width), "FULLSCREEN", &settings->fullscreen);
+    float music = settings->music_volume * 100.0f;
+    if (UiSlider(ui, ButtonAt(top, 3, width), "MUSIC", &music, 0.0f, 100.0f, 5.0f, "%.0f%%"))
+    {
+        settings->music_volume = music / 100.0f;
+    }
+    changed |= UiToggle(ui, ButtonAt(top, 4, width), "FULLSCREEN", &settings->fullscreen);
     if (changed)
     {
         SettingsApply(settings);
     }
-    if (UiButton(ui, ButtonAt(top, 4, width), TextFormat("DIFFICULTY: %s", DIFFICULTY_RULES[settings->difficulty].label)))
+    if (UiButton(ui, ButtonAt(top, 5, width), TextFormat("DIFFICULTY: %s", DIFFICULTY_RULES[settings->difficulty].label)))
     {
         settings->difficulty = (Difficulty)((settings->difficulty + 1) % DIFFICULTY_COUNT);
         app->options.has_difficulty = false;
     }
-    if (UiButton(ui, ButtonAt(top, 5, width), "BACK") || Back(app))
+    if (UiButton(ui, ButtonAt(top, 6, width), "BACK") || Back(app))
     {
         SettingsSave(settings);
         // A new difficulty changes the road, so a stage that is paused starts again
@@ -836,9 +894,20 @@ void AppFrame(App *app)
     {
         UpdatePlaying(app, dt);
     }
-    else if (app->screen == SCREEN_MENU || app->screen == SCREEN_STAGES || app->screen == SCREEN_STORY ||
-             (app->screen == SCREEN_DIFFICULTY && app->difficulty_choice == CHOICE_NEW_STORY) ||
-             (app->screen == SCREEN_SETTINGS && app->settings_back == SCREEN_MENU))
+    // The screens of the main menu, the game behind them stands still
+    bool in_menu = app->screen == SCREEN_MENU || app->screen == SCREEN_STAGES || app->screen == SCREEN_STORY ||
+                   (app->screen == SCREEN_DIFFICULTY && app->difficulty_choice == CHOICE_NEW_STORY) ||
+                   (app->screen == SCREEN_SETTINGS && app->settings_back == SCREEN_MENU);
+    char scene_path[256];
+    SceneMusicPath(app, scene_path, sizeof(scene_path));
+    bool menu_track = in_menu || strcmp(scene_path, app->menu_music.path) == 0;
+    MusicPlayerUpdate(&app->menu_music, menu_track, app->settings.music_volume, dt);
+    // The driving music also goes on in the pause menu, it stops after a crash and at the finish
+    bool driving = app->screen == SCREEN_PLAYING || app->screen == SCREEN_PAUSED ||
+                   (app->screen == SCREEN_SETTINGS && app->settings_back == SCREEN_PAUSED);
+    MusicPlayerUpdate(&app->drive_music, driving, app->settings.music_volume, dt);
+    UpdateSceneMusic(app, dt);
+    if (in_menu)
     {
         app->menu_time += dt;
         game->head.yaw = MENU_LOOK_DEG * sinf(app->menu_time * MENU_LOOK_SPEED);

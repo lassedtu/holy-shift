@@ -18,6 +18,8 @@
 //                                   player on the level in the story (see ScenePlayerSetBoard)
 //   fade                            fade to black, the next picture fades in from black
 //   wait <s>                        show the picture for <s> seconds without text
+//   music <file>                    fade to a music file in MUSIC_DIR, it plays until "music stop" or the end of the scene
+//   music stop                      fade out the music
 //   <Speaker>: <text>               a line of dialogue, with the portrait <speaker>.png from STORY_PORTRAITS_DIR
 //   <Speaker> (<mood>): <text>      a line with the portrait <speaker>_<mood>.png, or <speaker>.png when it is missing
 //   : <text>                        a line without a speaker, for example for a narrator
@@ -28,6 +30,7 @@ typedef enum SceneCommandType
     SCENE_PAN,
     SCENE_FADE,
     SCENE_WAIT,
+    SCENE_MUSIC,
     SCENE_LINE
 } SceneCommandType;
 
@@ -51,7 +54,8 @@ typedef enum SceneAnchor
 typedef struct SceneCommand
 {
     SceneCommandType type;
-    char name[SCENE_MAX_NAME];     // the file of a picture, the level of a board, or the portrait of a line ("" when there is no speaker)
+    char name[SCENE_MAX_NAME];     // the file of a picture or of music ("" to stop the music), the level of a board,
+                                   // or the portrait of a line ("" when there is no speaker)
     char fallback[SCENE_MAX_NAME]; // the portrait of a line when the portrait of the mood is missing
     char text[SCENE_MAX_TEXT];
     ScenePan pan;

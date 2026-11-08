@@ -246,6 +246,9 @@ static void Run(ScenePlayer *player)
                 return;
             }
             break;
+        case SCENE_MUSIC:
+            snprintf(player->music, sizeof(player->music), "%s", command->name);
+            break;
         case SCENE_WAIT:
             if (!player->started)
             {

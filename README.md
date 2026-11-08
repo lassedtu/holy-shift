@@ -137,4 +137,5 @@ The synthesiser has since been turned into its own library: [gj26-cs](https://gi
 - **Trees**: Low Poly Trees by [Iron Heart](https://evilempires23.itch.io/) (CC0)
 - **Car cockpit**: Retro Car by [Bricchi Games](https://bricchi-games.itch.io/) (Creative Commons, attribution required)
 - **Sound effects**: car crash, tyre screech and gear select recordings from [freesound.org](https://www.freesound.org)
+- **Music**: "Welcome to the Show", "Breakdown", "Motherlode", "I Feel You", "What You Want ver 2", "Pilot Error", "Riptide" and "Delay Rock" by Kevin MacLeod ([incompetech.com](https://incompetech.com)), licensed under [Creative Commons: By Attribution 4.0](https://creativecommons.org/licenses/by/4.0/)
 - **Story photos**: stock photos from [Pexels](https://www.pexels.com/), pixelated by me

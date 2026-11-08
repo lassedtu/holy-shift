@@ -142,6 +142,19 @@ static bool ParseCommand(SceneCommand *command, char *line)
         command->type = SCENE_FADE;
         return true;
     }
+    if (strcmp(word, "music") == 0)
+    {
+        command->type = SCENE_MUSIC;
+        if (sscanf(arguments, "%63s", command->name) != 1)
+        {
+            return false;
+        }
+        if (strcmp(command->name, "stop") == 0)
+        {
+            command->name[0] = '\0';
+        }
+        return true;
+    }
     if (strcmp(word, "wait") == 0)
     {
         command->type = SCENE_WAIT;

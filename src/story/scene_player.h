@@ -50,6 +50,7 @@ typedef struct ScenePlayer
     float wait;  // seconds left of a wait command
     float time;
     bool done;
+    char music[SCENE_MAX_NAME]; // the music file that the scene plays now, "" for no music
     Standings board; // the standings that a board command shows
     char board_title[LEVEL_MAX_NAME];
     bool has_board;

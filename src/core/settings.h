@@ -22,7 +22,8 @@ typedef struct Settings
 {
     float mouse_sensitivity; // 1 is MOUSE_SENSITIVITY_DEG
     bool invert_look;        // true when the mouse moves the view up and down the other way
-    float volume;            // from 0 to 1
+    float volume;            // from 0 to 1, all the sound of the game
+    float music_volume;      // from 0 to 1, the music, the volume multiplies it
     bool fullscreen;
     Difficulty difficulty; // for the story and for free play
     int story_step;        // the next step of the story mode, 0 when there is no story to continue

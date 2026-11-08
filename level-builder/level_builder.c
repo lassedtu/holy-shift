@@ -89,6 +89,7 @@ typedef struct
     bool trees[TREE_SPECIES_COUNT]; // the species of trees around the road
     GroundTheme theme;              // the look of the ground in the game
     TimeOfDay time_of_day;          // the light of the stage in the game
+    char music[64];                 // the music file in assets/music/ while driving, "" for no music, kept as it is
     int road_width; // map pixels
 } Level;
 
@@ -260,6 +261,10 @@ static bool ExportLevel(const Level *level, const char *name, char *message,
     }
     fprintf(file, "  \"theme\": \"%s\",\n", GROUND_THEME_NAMES[level->theme]);
     fprintf(file, "  \"time_of_day\": \"%s\",\n", LIGHTING[level->time_of_day].name);
+    if (level->music[0] != '\0')
+    {
+        fprintf(file, "  \"music\": \"%s\",\n", level->music);
+    }
     for (int d = 0; d < DIFFICULTY_COUNT; d++)
     {
         if (level->time_count[d] == 0)
@@ -417,6 +422,11 @@ static bool LoadLevel(const char *name, Level *level, char *message,
         char time_name[32] = "";
         sscanf(SkipTo(time, "") + 1, "%31[^\"]", time_name);
         loaded.time_of_day = TimeOfDayFind(time_name);
+    }
+    const char *music = FindKey(text, "music");
+    if (music != NULL && *SkipTo(music, "") == '"')
+    {
+        sscanf(SkipTo(music, "") + 1, "%63[^\"]", loaded.music);
     }
     const char *display = FindKey(text, "display_name");
     if (display != NULL && *SkipTo(display, "") == '"')

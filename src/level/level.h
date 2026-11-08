@@ -37,6 +37,7 @@ typedef struct Level
     bool trees[TREE_SPECIES_COUNT]; // the species of trees around the road
     GroundTheme ground_theme;       // the look of the ground, GROUND_FOREST when the file has no theme
     TimeOfDay time_of_day;          // the light of the stage, TIME_DAY when the file has no time of day
+    char music[LEVEL_MAX_NAME];     // the file in MUSIC_DIR that plays while driving, "" for no music
 } Level;
 
 // Load a level by its folder name, write the reason in message when it fails

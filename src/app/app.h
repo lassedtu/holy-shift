@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "audio/music.h"
 #include "core/options.h"
 #include "core/settings.h"
 #include "game/game.h"
@@ -43,6 +44,9 @@ typedef struct App
     Options options;
     Settings settings;
     Ui ui;
+    MusicPlayer menu_music;  // plays on the screens of the main menu
+    MusicPlayer drive_music; // plays while the player drives a stage
+    MusicPlayer scene_music; // plays when a scene asks for it
     Game game;
     bool game_ready;
 

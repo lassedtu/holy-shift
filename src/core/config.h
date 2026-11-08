@@ -28,6 +28,12 @@
 #define TREE_SHEET_DIR "assets/trees"                       // the pictures of the trees, see level/tree_species.h
 #define SOUND_SCREECH_PATH "assets/sounds/tire_screech.wav" // made by scripts/screech_loop.py
 #define SOUND_GEAR_PATH "assets/sounds/gear_change.wav"     // made by scripts/sound_clips.py
+#define MUSIC_MENU_PATH "assets/music/welcome_to_the_show.ogg" // "Welcome to the Show" by Kevin MacLeod, CC BY 4.0
+#define MUSIC_DIR "assets/music" // the music of the levels ("music" in level.json), see the credits in README.md
+#define MUSIC_MENU_VOLUME 0.55f  // the menu music is this loud at full volume, the volumes of the settings multiply it
+#define MUSIC_SCENE_VOLUME 0.55f // the music of the story scenes ("music" in a .scene file)
+#define MUSIC_DRIVE_VOLUME 0.40f // the music while driving is quieter, so the engine and the map are clear
+#define MUSIC_FADE_SECONDS 1.2f  // the music fades in and out in this time
 #define UI_DIR "assets/ui"                                  // Kenney Pixel UI Pack (CC0), see assets/ui/Kenney-License.txt
 #define STORY_ORDER_PATH "assets/story/story.order" // the order of the scenes and the stages of the story mode
 #define STORY_SCENES_DIR "assets/story/scenes"      // the .scene files

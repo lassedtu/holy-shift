@@ -9,7 +9,7 @@
 
 void SettingsLoad(Settings *settings)
 {
-    *settings = (Settings){.mouse_sensitivity = 1.0f, .volume = 0.8f, .difficulty = DIFFICULTY_MEDIUM};
+    *settings = (Settings){.mouse_sensitivity = 1.0f, .volume = 0.8f, .music_volume = 1.0f, .difficulty = DIFFICULTY_MEDIUM};
     char *text = FileExists(SAVE_PATH) ? LoadFileText(SAVE_PATH) : NULL;
     if (text == NULL)
     {
@@ -54,6 +54,10 @@ void SettingsLoad(Settings *settings)
             {
                 settings->volume = value;
             }
+            else if (strcmp(key, "music_volume") == 0)
+            {
+                settings->music_volume = value;
+            }
             else if (strcmp(key, "fullscreen") == 0)
             {
                 settings->fullscreen = value != 0.0f;
@@ -80,9 +84,10 @@ bool SettingsSave(const Settings *settings)
 {
     char text[8192];
     int length = snprintf(text, sizeof(text),
-                          "mouse_sensitivity %.2f\ninvert_look %d\nvolume %.2f\nfullscreen %d\ndifficulty %d\n"
+                          "mouse_sensitivity %.2f\ninvert_look %d\nvolume %.2f\nmusic_volume %.2f\nfullscreen %d\ndifficulty %d\n"
                           "story_step %d\nstory_last_time %.3f\n",
-                          settings->mouse_sensitivity, settings->invert_look, settings->volume, settings->fullscreen,
+                          settings->mouse_sensitivity, settings->invert_look, settings->volume, settings->music_volume,
+                          settings->fullscreen,
                           (int)settings->difficulty, settings->story_step, settings->story_last_time);
     for (int i = 0; i < settings->best_count && length < (int)sizeof(text); i++)
     {

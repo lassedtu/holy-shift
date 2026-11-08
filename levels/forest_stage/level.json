@@ -20,6 +20,7 @@
   "display_name": "Forest Stage",
   "theme": "mud",
   "time_of_day": "overcast",
+  "music": "delay_rock.ogg",
   "times_easy": [79.48, 83.39, 87.30, 91.21, 95.77, 100.33, 105.54],
   "times": [68.41, 72.97, 77.53, 81.44, 85.34, 89.25, 94.46],
   "times_hard": [67.35, 69.22, 71.84, 74.83, 78.20, 81.57, 86.81],

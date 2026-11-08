@@ -20,6 +20,7 @@
   "closed": true,
   "tutorial": true,
   "time_of_day": "day",
+  "music": "breakdown.ogg",
   "trees": [
     "spruce"
   ],

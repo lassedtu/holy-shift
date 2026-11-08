@@ -2,6 +2,7 @@
 # Goal: Rajka admits that Jelka was right, they make up, Jelka leaves Zlo, the bingo hall is saved.
 # Mood: relief, a little emotional, and it ends on a joke.
 
+music pilot_error.ogg
 # picture: The same picture as in 01: Jelka's car and the Jugo side by side, now at the finish.
 # search: (uses 01_jelka_arrives)
 image 01_jelka_arrives.png top
@@ -33,4 +34,16 @@ Rajka: That's not yours, you have seventy-four.
 Jelka: I have both.
 Luka: Do you two have to sit together?
 Rajka: Yes.
+fade
+
+image 00_bingo_night.png bottom
+image 00_village.png
+pan down 8
+: Rajka saved the villages bingo hall from demolition.
+: Zlo was forced to leave the rally club, to never return.
+fade
+
+image 04_zlo_team.png
+music what_you_want.ogg
+Zlo (smug): For now...
 fade

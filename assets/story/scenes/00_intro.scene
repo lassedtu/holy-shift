@@ -7,6 +7,8 @@
 
 # picture: A small village in green hills, seen from above, with a road winding through it.
 # search: village aerial, rural village hills, countryside houses
+# The theme of the main menu goes on into the scene
+music welcome_to_the_show.ogg
 image 00_village.png
 pan down 8
 wait 4
@@ -22,6 +24,7 @@ Rajka: Mara has nine. Nobody says anything to Mara.
 
 # picture: A letter or an official document lying on a table.
 # search: letter on table, official document, envelope paper
+music stop
 image 00_zlo_letter.png
 Luka: What is it?
 Rajka: They're buying the hall.
@@ -44,6 +47,7 @@ Rajka: I'm not.
 
 # picture: An old garage or shed with tools on the walls, maybe a car under a cover.
 # search: old garage interior, car cover, workshop tools
+music riptide.ogg
 image 00_garage.png bottom
 Luka: Is that Grandpa's car?
 Rajka: It's my car. Grandpa was allowed to drive it on Sundays.

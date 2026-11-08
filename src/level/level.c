@@ -248,6 +248,7 @@ bool LevelLoad(Level *level, const char *name, char *message, size_t size)
     loaded.ground_theme = JsonReadString(text, "theme", theme, sizeof(theme)) ? GroundThemeFind(theme) : GROUND_FOREST;
     char time[32];
     loaded.time_of_day = JsonReadString(text, "time_of_day", time, sizeof(time)) ? TimeOfDayFind(time) : TIME_DAY;
+    JsonReadString(text, "music", loaded.music, sizeof(loaded.music));
     for (int d = 0; d < DIFFICULTY_COUNT; d++)
     {
         int times = JsonReadNumberArray(text, DIFFICULTY_RULES[d].times_key, loaded.times[d], LEVEL_RIVALS);
