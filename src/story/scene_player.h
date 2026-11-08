@@ -45,6 +45,7 @@ typedef struct ScenePlayer
     float black; // from 0 (no black) to 1 (all black)
     float black_target;
     float typed; // letters of the line that are shown
+    float letter_wait; // seconds until the next letter is shown
     float alone; // seconds left that a new picture shows without the dialogue box
     float box_in; // from 0 (below the screen) to 1 (in its place) while the dialogue box slides in
     float wait;  // seconds left of a wait command

@@ -138,4 +138,5 @@ The synthesiser has since been turned into its own library: [gj26-cs](https://gi
 - **Car cockpit**: Retro Car by [Bricchi Games](https://bricchi-games.itch.io/) (Creative Commons, attribution required)
 - **Sound effects**: car crash, tyre screech and gear select recordings from [freesound.org](https://www.freesound.org)
 - **Music**: "Welcome to the Show", "Breakdown", "Motherlode", "I Feel You", "What You Want ver 2", "Pilot Error", "Riptide" and "Delay Rock" by Kevin MacLeod ([incompetech.com](https://incompetech.com)), licensed under [Creative Commons: By Attribution 4.0](https://creativecommons.org/licenses/by/4.0/)
+- **Voices**: the idea for the dialogue voices (a time for each letter and a small vowel synth) comes from the video ["I Gave My NPCs Voices Without Recording Anything"](https://youtu.be/NaW0d7Tghw0) by [UnitOfTime](https://www.youtube.com/@UnitOfTimeYT). Our version is written from scratch
 - **Story photos**: stock photos from [Pexels](https://www.pexels.com/), pixelated by me

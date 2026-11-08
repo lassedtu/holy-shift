@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "audio/voice.h"
 #include "core/config.h"
 #include "level/track.h"
 #include "render/present.h"
@@ -27,6 +28,7 @@
 #define DIFFICULTY_WIDTH 260.0f
 #define DIFFICULTY_STEP 54.0f // the difficulty buttons are higher than the other buttons, for two lines
 #define DEV_FINISH_TIME 50.0f // the time on the results of --screen finished
+#define VOICE_MAX_JUMP 3 // more new letters than this in one frame is a line shown at once, it is not said
 #define QUALIFY_PLACE 3 // the story goes on from this place or better (the final needs the first place)
 
 static void SetScreen(App *app, Screen screen)
@@ -141,6 +143,8 @@ static bool Back(const App *app)
 
 static void StopScene(App *app)
 {
+    VoiceStop();
+    app->voice_index = -1;
     if (app->scene_playing)
     {
         ScenePlayerStop(&app->scene);
@@ -235,10 +239,53 @@ static void NextStoryStep(App *app)
     ContinueStory(app);
 }
 
+// Say the letters that the dialogue box typed in this frame
+// A line that is shown at once (a click) is not said, a line without a speaker has the neutral voice of the narrator
+static void SpeakScene(App *app)
+{
+    const ScenePlayer *player = &app->scene;
+    const SceneCommand *command = NULL;
+    if (app->scene_playing && !player->done && player->index < player->scene.count && player->started)
+    {
+        command = &player->scene.commands[player->index];
+    }
+    if (command == NULL || command->type != SCENE_LINE)
+    {
+        VoiceStop();
+        app->voice_index = -1;
+        return;
+    }
+    if (app->voice_index != player->index)
+    {
+        app->voice_index = player->index;
+        app->voice_typed = 0;
+    }
+    int typed = (int)player->typed;
+    int length = (int)strlen(command->text);
+    if (typed - app->voice_typed > VOICE_MAX_JUMP)
+    {
+        VoiceStop();
+        app->voice_typed = typed;
+        return;
+    }
+    size_t speaker = strlen(command->fallback);
+    const char *mood = strncmp(command->name, command->fallback, speaker) == 0 && command->name[speaker] == '_'
+                           ? command->name + speaker + 1
+                           : "";
+    VoiceStyle style = VoiceStyleFor(command->fallback, mood);
+    bool question = length > 0 && command->text[length - 1] == '?';
+    for (int i = app->voice_typed; i < typed; i++)
+    {
+        VoiceSay(&style, command->text[i], (float)i / (float)length, question);
+    }
+    app->voice_typed = typed;
+}
+
 static void SceneScreen(App *app)
 {
     bool advance = !app->screen_changed && (app->ui.select || IsMouseButtonPressed(MOUSE_BUTTON_LEFT));
     ScenePlayerUpdate(&app->scene, GetFrameTime(), advance, Back(app));
+    SpeakScene(app);
     ScenePlayerDraw(&app->scene, &app->ui);
     if (ScenePlayerDone(&app->scene))
     {
@@ -295,6 +342,8 @@ bool AppInit(App *app, const Options *options, char *message, size_t size)
         return false;
     }
     MusicPlayerLoad(&app->menu_music, MUSIC_MENU_PATH, MUSIC_MENU_VOLUME);
+    VoiceInit();
+    app->voice_index = -1;
     app->level_count = LevelFindAll(app->levels, APP_MAX_LEVELS);
     for (int i = 0; i < app->level_count; i++)
     {
@@ -345,6 +394,7 @@ void AppShutdown(App *app)
     MusicPlayerUnload(&app->menu_music);
     MusicPlayerUnload(&app->drive_music);
     MusicPlayerUnload(&app->scene_music);
+    VoiceUnload();
     if (app->game_ready)
     {
         GameShutdown(&app->game);
