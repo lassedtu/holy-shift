@@ -28,19 +28,20 @@ typedef struct DifficultyRules
                              // for this difficulty
     bool surfaces;           // false when the surfaces of the road (mud) do not change the grip
     float map_events;        // how often Luka's map events happen, 1 is the normal amount
+    bool map;                // false when Luka has no map, then the player drives without pace notes
     Color color;             // the color of the difficulty in the menus
     Color ink;               // the color of a text on the color
 } DifficultyRules;
 
 static const DifficultyRules DIFFICULTY_RULES[DIFFICULTY_COUNT] = {
-    [DIFFICULTY_EASY] = {"easy", "EASY", "Wide roads, slow rivals, no mud", "times_easy", 1.4f, 1.18f, false, 0.5f,
+    [DIFFICULTY_EASY] = {"easy", "EASY", "Wide roads, slow rivals, no mud", "times_easy", 1.4f, 1.18f, false, 0.5f, true,
                          {70, 160, 70, 255}, {250, 246, 230, 255}},
-    [DIFFICULTY_MEDIUM] = {"medium", "MEDIUM", "The rally as it is meant to be", "times", 1.0f, 1.0f, true, 1.0f,
+    [DIFFICULTY_MEDIUM] = {"medium", "MEDIUM", "The rally as it is meant to be", "times", 1.0f, 1.0f, true, 1.0f, true,
                            {236, 192, 40, 255}, {60, 40, 24, 255}},
-    [DIFFICULTY_HARD] = {"hard", "HARD", "Narrow roads, fast rivals", "times_hard", 0.75f, 0.93f, true, 1.5f,
+    [DIFFICULTY_HARD] = {"hard", "HARD", "Narrow roads, fast rivals", "times_hard", 0.75f, 0.93f, true, 1.5f, true,
                          {196, 54, 44, 255}, {250, 236, 220, 255}},
-    [DIFFICULTY_ULTRA] = {"ultra", "ULTRA HARD", "Very thin roads, the best rivals", "times_ultra", 0.5f, 0.98f, true,
-                          2.0f, {34, 32, 36, 255}, {236, 230, 220, 255}},
+    [DIFFICULTY_ULTRA] = {"ultra", "ULTRA HARD", "Very thin roads and no map", "times_ultra", 0.5f, 0.98f, true,
+                          2.0f, false, {34, 32, 36, 255}, {236, 230, 220, 255}},
 };
 
 #endif

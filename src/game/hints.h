@@ -58,11 +58,13 @@ typedef struct Hints
     float look_left;  // the largest head yaw to the left and to the right in the intro, degrees
     float look_right;
     bool intro_done; // the player finished the last step of the intro
+    bool map;        // false when there is no map, then the hints about the map do not show
     Texture2D portrait;
 } Hints;
 
 // Load the portrait, the hints show only when enabled is true
-void HintsInit(Hints *hints, bool enabled);
+// Without a map (ultra hard) the hints about the map are left out
+void HintsInit(Hints *hints, bool enabled, bool map);
 void HintsUnload(Hints *hints);
 
 // Show all the hints again, for example when the stage starts again

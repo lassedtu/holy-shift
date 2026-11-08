@@ -128,7 +128,7 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
     }
     PaceMapReset(&game->map, &game->track, &game->car);
     RainInit(&game->rain, (Mode7Camera){game->car.position, game->car.heading, game->head.pitch, game->car.heading});
-    HintsInit(&game->hints, game->level.tutorial && game->mode == GAME_MODE_NORMAL);
+    HintsInit(&game->hints, game->level.tutorial && game->mode == GAME_MODE_NORMAL, DIFFICULTY_RULES[game->difficulty].map);
     CarAudioInit(&game->audio, &game->car);
     CarAudioSetPlaying(&game->audio, game->mode != GAME_MODE_DEBUG_FLY);
 
@@ -276,10 +276,15 @@ void GameRender(Game *game)
         RainDraw(&game->rain, game->mode7.target, camera, velocity, game->light->fog, game->light->fog_end);
     }
     game->map.light = game->light->map;
-    if (!fly)
+    // On a difficulty without a map, Luka has no map and nothing is drawn
+    if (!fly && DIFFICULTY_RULES[game->difficulty].map)
     {
         PaceMapRender(&game->map, &game->track, &game->notes, &game->car, game->head.yaw,
                       game->head.pitch);
+    }
+    else
+    {
+        game->map.visible = false;
     }
 }
 

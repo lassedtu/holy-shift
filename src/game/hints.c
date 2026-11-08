@@ -50,9 +50,9 @@ static const HintText TEXTS[HINT_COUNT] = {
     [HINT_GRASS] = {"That's a field. Get back on the road.", ""},
 };
 
-void HintsInit(Hints *hints, bool enabled)
+void HintsInit(Hints *hints, bool enabled, bool map)
 {
-    *hints = (Hints){.enabled = enabled};
+    *hints = (Hints){.enabled = enabled, .map = map};
     HintsReset(hints);
     const char *path = STORY_PORTRAITS_DIR "/rajka.png";
     if (enabled && FileExists(path))
@@ -85,6 +85,13 @@ void HintsReset(Hints *hints)
     hints->look_left = 0.0f;
     hints->look_right = 0.0f;
     hints->intro_done = false;
+    if (!hints->map)
+    {
+        // The intro goes from looking around straight to the gears
+        hints->shown[HINT_INTRO_MAP] = true;
+        hints->shown[HINT_INTRO_NOTES] = true;
+        hints->shown[HINT_MAP] = true;
+    }
 }
 
 bool HintsIntroDone(const Hints *hints)
