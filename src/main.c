@@ -51,7 +51,7 @@ int main(int argc, char **argv)
     {
         AppFrame(&app);
 
-        if (options.screenshot != NULL && ++frames == SCREENSHOT_FRAME)
+        if (options.screenshot != NULL && ++frames == (options.shot_frame > 0 ? options.shot_frame : SCREENSHOT_FRAME))
         {
             SaveScreenshot(options.screenshot);
             break;

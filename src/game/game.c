@@ -19,6 +19,7 @@ static void RestartStage(Game *game, bool fade)
     PlayerDriverInit(&game->player_driver, &game->surface, &game->track, &game->car);
     StageStart(&game->stage, &game->track);
     PaceMapReset(&game->map, &game->track, &game->car);
+    HintsReset(&game->hints);
     game->crash_time = -1.0f;
     game->fade_in = fade ? RESTART_FADE_SECONDS : 0.0f;
     CarAudioSetPlaying(&game->audio, true);
@@ -106,6 +107,7 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
         game->head.pitch = Clamp(options->pitch_deg, game->head.pitch_min, game->head.pitch_max);
     }
     PaceMapReset(&game->map, &game->track, &game->car);
+    HintsInit(&game->hints, game->level.tutorial && game->mode == GAME_MODE_NORMAL);
     CarAudioInit(&game->audio, &game->car);
     CarAudioSetPlaying(&game->audio, game->mode != GAME_MODE_DEBUG_FLY);
 
@@ -118,6 +120,7 @@ void GameShutdown(Game *game)
 {
     CarAudioUnload(&game->audio);
     PaceMapUnload(&game->map);
+    HintsUnload(&game->hints);
     CockpitUnload(&game->cockpit);
     TreesUnload(&game->trees);
     Mode7Unload(&game->mode7);
@@ -125,6 +128,26 @@ void GameShutdown(Game *game)
     LevelTexturesUnload(&game->textures);
     ForestUnload(&game->forest);
     TrackUnload(&game->track);
+}
+
+static void UpdateHints(Game *game, float dt)
+{
+    float distance;
+    int next = PaceNextCorner(&game->notes, &game->track, game->map.position, &distance);
+    const PaceCorner *corner = next >= 0 ? &game->notes.corners[next] : NULL;
+    HintInput input = {
+        .car = &game->car,
+        .stage = &game->stage,
+        .head_yaw = game->head.yaw,
+        .map_visible = game->map.visible,
+        .corner_distance = corner != NULL ? distance : INFINITY,
+        .corner_grade = corner != NULL ? corner->grade : PACE_GRADE_STRAIGHT,
+        .corner_hairpin = corner != NULL && corner->hairpin,
+        .on_grass = SurfaceAt(&game->surface, game->car.position) == SURFACE_GRASS,
+        .braking = IsKeyDown(KEY_S),
+        .handbrake = IsKeyDown(KEY_SPACE),
+    };
+    HintsUpdate(&game->hints, &input, dt);
 }
 
 void GameUpdate(Game *game, float dt)
@@ -183,6 +206,10 @@ void GameUpdate(Game *game, float dt)
         }
     }
     PaceMapUpdate(&game->map, &game->track, &game->car, dt);
+    if (!crashed)
+    {
+        UpdateHints(game, dt);
+    }
     CarAudioUpdate(&game->audio, &game->car, SurfaceAt(&game->surface, game->car.position));
     HeadCameraUpdate(&game->head, mouse.x, mouse.y);
 }

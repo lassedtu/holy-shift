@@ -503,6 +503,10 @@ void AppFrame(App *app)
     ClearBackground(BLACK);
     GameDrawView(game, area);
     UiBegin(&app->ui, area);
+    if (app->screen == SCREEN_PLAYING)
+    {
+        HintsDraw(&game->hints, &app->ui);
+    }
     switch (app->screen)
     {
     case SCREEN_MENU:

@@ -9,6 +9,7 @@
     "road": [130, 90, 50]
   },
   "closed": true,
+  "tutorial": true,
   "trees": ["spruce"],
   "points": [
     [483.02, 287.81],

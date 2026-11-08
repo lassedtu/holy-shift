@@ -17,7 +17,8 @@ typedef struct Level
     char name[LEVEL_MAX_NAME];
     Vector2 points[LEVEL_MAX_POINTS];
     int count;
-    bool closed; // the last point connects to the first point
+    bool closed;   // the last point connects to the first point
+    bool tutorial; // the game shows the hints of the tutorial on this level
     int map_width;
     int map_height;
     int road_width;

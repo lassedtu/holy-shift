@@ -25,6 +25,10 @@ bool OptionsParse(Options *options, int argc, char **argv, char *message, size_t
         {
             options->screenshot = argv[++i];
         }
+        else if (has_value && strcmp(argv[i], "--frame") == 0)
+        {
+            options->shot_frame = atoi(argv[++i]);
+        }
         else if (has_value && strcmp(argv[i], "--screen") == 0)
         {
             options->screen = argv[++i];

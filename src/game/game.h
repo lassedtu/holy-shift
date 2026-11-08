@@ -13,6 +13,7 @@
 #include "car/player_driver.h"
 #include "core/game_mode.h"
 #include "core/options.h"
+#include "game/hints.h"
 #include "game/stage.h"
 #include "level/forest.h"
 #include "level/level.h"
@@ -61,6 +62,7 @@ typedef struct Game
     Trees trees;
     Cockpit cockpit;
     PaceMap map;
+    Hints hints; // the hints of a tutorial level
     CarAudio audio;
 } Game;
 

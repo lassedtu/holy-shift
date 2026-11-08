@@ -61,7 +61,8 @@ typedef struct
 {
     Vector2 points[MAX_POINTS];
     int count;
-    bool closed; // the last point connects to the first point
+    bool closed;   // the last point connects to the first point
+    bool tutorial; // the game shows the hints of the tutorial on this level
     bool trees[TREE_SPECIES_COUNT]; // the species of trees around the road
     int road_width; // map pixels
 } Level;
@@ -220,6 +221,10 @@ static bool ExportLevel(const Level *level, const char *name, char *message,
             COLOR_ROAD.b);
     fprintf(file, "  },\n");
     fprintf(file, "  \"closed\": %s,\n", level->closed ? "true" : "false");
+    if (level->tutorial)
+    {
+        fprintf(file, "  \"tutorial\": true,\n");
+    }
     fprintf(file, "  \"trees\": [");
     bool first_tree = true;
     for (int i = 0; i < TREE_SPECIES_COUNT; i++)
@@ -351,6 +356,8 @@ static bool LoadLevel(const char *name, Level *level, char *message,
 
     Level loaded = {.count = 0, .closed = false, .road_width = (int)road_width};
     const char *closed = FindKey(text, "closed");
+    const char *tutorial = FindKey(text, "tutorial");
+    loaded.tutorial = tutorial != NULL && strncmp(SkipTo(tutorial, ""), "true", 4) == 0;
     if (closed != NULL)
     {
         loaded.closed = strncmp(SkipTo(closed, ""), "true", 4) == 0;

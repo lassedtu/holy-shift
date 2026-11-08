@@ -183,6 +183,7 @@ bool LevelLoad(Level *level, const char *name, char *message, size_t size)
 
     // A level without the closed key has an open curve
     JsonReadBool(text, "closed", &loaded.closed);
+    JsonReadBool(text, "tutorial", &loaded.tutorial);
 
     loaded.road_color = COLOR_ROAD;
     float road[3];
