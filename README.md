@@ -59,10 +59,6 @@ make -C level-builder run
 
 Click to add road points, click the first point to close the loop, then pick the trees, the road width, the display name and the tutorial flag, and press Export. The controls are listed at the top of `level-builder/level_builder.c`.
 
-### Asset scripts
-
-The pre-rendered assets are made with the Python scripts in `scripts/` (they need Pillow and NumPy, and some need Blender 5). Each script explains how to run it at the top. The diagrams in this README are made with `python3 scripts/readme_diagrams.py`, which uses the same maths as the shaders.
-
 ---
 
 # Technical Details
