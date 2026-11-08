@@ -15,6 +15,8 @@
 //   Road slider             : drag to set the width of the road
 //   Ground button           : click to choose the look of the ground (forest, autumn, mud, lakeside)
 //   Time of day button      : click to choose the light of the stage (day, overcast, dusk, night, rain)
+//   Water button            : the water brush, drag to paint a lake, right drag to take it away, [ and ] for the size
+//                             (the water has no undo)
 //   All the buttons are in the panel at the right side of the window
 //
 // Run from the project root:
@@ -66,6 +68,10 @@
 #define POINT_RADIUS 6.0f
 #define PICK_RADIUS 12.0f // maximum distance to select a point, in screen pixels
 #define MESSAGE_SECONDS 4.0f
+#define BRUSH_DEFAULT 40.0f // radius of the water brush in map pixels
+#define BRUSH_MIN 8.0f
+#define BRUSH_MAX 240.0f
+#define BRUSH_STEP 1.25f
 
 #define LEVELS_DIR "levels"
 #define MAX_NAME 32
@@ -76,6 +82,7 @@
 
 static const Color COLOR_OUTSIDE = {40, 150, 50, 255};
 static const Color COLOR_ROAD = {130, 90, 50, 255};
+static const Color COLOR_WATER = {40, 90, 160, 255}; // a lake in the logic map
 
 typedef struct
 {
@@ -175,10 +182,22 @@ static Vector2 *BuildCurve(const Level *level, int *out_count)
     return curve;
 }
 
-// Draw the road around the curve into the logic map
-static void RenderLogicMap(Image *image, const Vector2 *curve, int count, int road_width)
+static bool SameColor(Color a, Color b)
+{
+    return a.r == b.r && a.g == b.g && a.b == b.b;
+}
+
+// Draw the water and then the road around the curve into the logic map, the road is over the water
+// The water mask has one byte for each map pixel, NULL for no water
+static void RenderLogicMap(Image *image, const Vector2 *curve, int count, int road_width, const unsigned char *water)
 {
     ImageClearBackground(image, COLOR_OUTSIDE);
+    Color *pixels = image->data;
+    for (int i = 0; water != NULL && i < MAP_W * MAP_H; i++)
+    {
+        if (water[i])
+            pixels[i] = COLOR_WATER;
+    }
     for (int i = 0; i < count; i++)
     {
         ImageDrawCircleV(image, curve[i], road_width / 2, COLOR_ROAD);
@@ -187,7 +206,7 @@ static void RenderLogicMap(Image *image, const Vector2 *curve, int count, int ro
 
 // Save the level file and the logic map in levels/<name>/
 // Write the result in message
-static bool ExportLevel(const Level *level, const char *name, char *message,
+static bool ExportLevel(const Level *level, const unsigned char *water, const char *name, char *message,
                         size_t size)
 {
     if (name[0] == '\0')
@@ -219,7 +238,7 @@ static bool ExportLevel(const Level *level, const char *name, char *message,
     }
 
     Image image = GenImageColor(MAP_W, MAP_H, COLOR_OUTSIDE);
-    RenderLogicMap(&image, curve, curve_count, level->road_width);
+    RenderLogicMap(&image, curve, curve_count, level->road_width, water);
     free(curve);
     ImageFormat(&image, PIXELFORMAT_UNCOMPRESSED_R8G8B8);
     bool png_ok = ExportImage(image, png_path);
@@ -245,8 +264,9 @@ static bool ExportLevel(const Level *level, const char *name, char *message,
     fprintf(file, "  \"colors\": {\n");
     fprintf(file, "    \"outside\": [%d, %d, %d],\n", COLOR_OUTSIDE.r,
             COLOR_OUTSIDE.g, COLOR_OUTSIDE.b);
-    fprintf(file, "    \"road\": [%d, %d, %d]\n", COLOR_ROAD.r, COLOR_ROAD.g,
+    fprintf(file, "    \"road\": [%d, %d, %d],\n", COLOR_ROAD.r, COLOR_ROAD.g,
             COLOR_ROAD.b);
+    fprintf(file, "    \"water\": [%d, %d, %d]\n", COLOR_WATER.r, COLOR_WATER.g, COLOR_WATER.b);
     fprintf(file, "  },\n");
     fprintf(file, "  \"closed\": %s,\n", level->closed ? "true" : "false");
     if (level->display_name[0] != '\0')
@@ -590,6 +610,67 @@ static void RemovePoint(Level *level, int index)
         level->closed = false;
 }
 
+// Read the water of a saved level back from its logic map, the mask is empty when there is none
+static void LoadWater(const char *name, unsigned char *water)
+{
+    memset(water, 0, (size_t)MAP_W * MAP_H);
+    const char *path = TextFormat("%s/%s/%s", LEVELS_DIR, name, PNG_NAME);
+    if (!FileExists(path))
+        return;
+    Image image = LoadImage(path);
+    if (image.width != MAP_W || image.height != MAP_H)
+    {
+        UnloadImage(image);
+        return;
+    }
+    ImageFormat(&image, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+    const Color *pixels = image.data;
+    for (int i = 0; i < MAP_W * MAP_H; i++)
+    {
+        water[i] = SameColor(pixels[i], COLOR_WATER);
+    }
+    UnloadImage(image);
+}
+
+// Paint or take away water in a circle, the road stays on top. Only the changed part of the texture is sent again
+static void PaintWater(unsigned char *water, Image *logic, Texture2D texture, Vector2 at, float radius, bool paint)
+{
+    int x0 = (int)fmaxf(at.x - radius, 0.0f);
+    int y0 = (int)fmaxf(at.y - radius, 0.0f);
+    int x1 = (int)fminf(at.x + radius, MAP_W - 1.0f);
+    int y1 = (int)fminf(at.y + radius, MAP_H - 1.0f);
+    if (x1 < x0 || y1 < y0)
+        return;
+    Color *pixels = logic->data;
+    for (int y = y0; y <= y1; y++)
+    {
+        for (int x = x0; x <= x1; x++)
+        {
+            float dx = (float)x - at.x;
+            float dy = (float)y - at.y;
+            if (dx * dx + dy * dy > radius * radius)
+                continue;
+            int i = y * MAP_W + x;
+            water[i] = paint;
+            if (paint && !SameColor(pixels[i], COLOR_ROAD))
+                pixels[i] = COLOR_WATER;
+            else if (!paint && SameColor(pixels[i], COLOR_WATER))
+                pixels[i] = COLOR_OUTSIDE;
+        }
+    }
+    int w = x1 - x0 + 1;
+    int h = y1 - y0 + 1;
+    Color *part = malloc((size_t)w * (size_t)h * sizeof(Color));
+    if (part == NULL)
+        return;
+    for (int y = 0; y < h; y++)
+    {
+        memcpy(part + y * w, pixels + (y0 + y) * MAP_W + x0, (size_t)w * sizeof(Color));
+    }
+    UpdateTextureRec(texture, (Rectangle){(float)x0, (float)y0, (float)w, (float)h}, part);
+    free(part);
+}
+
 static void DrawPanelButton(Rectangle rect, const char *label, bool hover, bool on)
 {
     Color fill = on ? (Color){40, 120, 60, 255} : COLOR_BUTTON;
@@ -638,6 +719,9 @@ int main(int argc, char **argv)
     int curve_count = 0;
 
     Image logic = GenImageColor(MAP_W, MAP_H, COLOR_OUTSIDE);
+    unsigned char *water = calloc((size_t)MAP_W * MAP_H, 1);
+    bool water_mode = false;
+    float brush = BRUSH_DEFAULT;
     Texture2D texture = LoadTextureFromImage(logic);
     SetTextureFilter(texture, TEXTURE_FILTER_POINT);
 
@@ -650,6 +734,7 @@ int main(int argc, char **argv)
     Rectangle tutorial_box;
     Rectangle theme_button;
     Rectangle time_button;
+    Rectangle water_button;
     float label_y[6];      // the labels over the groups: folder, display name, road, ground, time of day, trees
     bool display_focus = false;
     bool road_drag = false;
@@ -667,12 +752,14 @@ int main(int argc, char **argv)
         snprintf(name, sizeof(name), "%s", open_name);
         name_length = (int)strlen(name);
         bool opened = LoadLevel(name, &level, message, sizeof(message));
+        if (opened && water != NULL)
+            LoadWater(name, water);
         message_time = MESSAGE_SECONDS;
         if (opened)
         {
             free(curve);
             curve = BuildCurve(&level, &curve_count);
-            RenderLogicMap(&logic, curve, curve_count, level.road_width);
+            RenderLogicMap(&logic, curve, curve_count, level.road_width, water);
             UpdateTexture(texture, logic.data);
             zoom = 0.33f;
         }
@@ -704,7 +791,8 @@ int main(int argc, char **argv)
         road_slider = (Rectangle){x, y + LABEL_GAP, w, ROW_H};
         y = road_slider.y + ROW_H + SECTION_GAP;
         label_y[3] = y;
-        theme_button = (Rectangle){x, y + LABEL_GAP, w, ROW_H};
+        theme_button = (Rectangle){x, y + LABEL_GAP, half, ROW_H};
+        water_button = (Rectangle){x + half + 8.0f, y + LABEL_GAP, half, ROW_H};
         y = theme_button.y + ROW_H + SECTION_GAP;
         label_y[4] = y;
         time_button = (Rectangle){x, y + LABEL_GAP, w, ROW_H};
@@ -872,6 +960,10 @@ int main(int argc, char **argv)
                 PushUndo(&level);
                 level.theme = (GroundTheme)((level.theme + 1) % GROUND_THEME_COUNT);
             }
+            else if (CheckCollisionPointRec(mouse, water_button))
+            {
+                water_mode = !water_mode;
+            }
             else if (CheckCollisionPointRec(mouse, time_button))
             {
                 PushUndo(&level);
@@ -879,7 +971,7 @@ int main(int argc, char **argv)
             }
             else if (CheckCollisionPointRec(mouse, export_button))
             {
-                ExportLevel(&level, name, message, sizeof(message));
+                ExportLevel(&level, water, name, message, sizeof(message));
                 message_time = MESSAGE_SECONDS;
             }
             else if (CheckCollisionPointRec(mouse, open_button))
@@ -887,6 +979,8 @@ int main(int argc, char **argv)
                 Level loaded;
                 if (LoadLevel(name, &loaded, message, sizeof(message)))
                 {
+                    if (water != NULL)
+                        LoadWater(name, water);
                     PushUndo(&level);
                     level = loaded;
                     changed = true;
@@ -900,7 +994,7 @@ int main(int argc, char **argv)
                 }
                 message_time = MESSAGE_SECONDS;
             }
-            else if (!over_panel && in_map)
+            else if (!over_panel && in_map && !water_mode)
             {
                 int hit = FindPoint(&level, world, pick_radius);
                 if (level.closed)
@@ -941,7 +1035,22 @@ int main(int argc, char **argv)
         {
             road_drag = false;
         }
-        if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) && !over_panel)
+        // The water brush: left paints, right takes away
+        if (water_mode && water != NULL && !over_panel && in_map)
+        {
+            bool paint = IsMouseButtonDown(MOUSE_BUTTON_LEFT);
+            bool erase = IsMouseButtonDown(MOUSE_BUTTON_RIGHT);
+            if (paint || erase)
+                PaintWater(water, &logic, texture, world, brush, paint);
+        }
+        if (water_mode && !name_focus && !display_focus)
+        {
+            if (IsKeyPressed(KEY_RIGHT_BRACKET) || IsKeyPressedRepeat(KEY_RIGHT_BRACKET))
+                brush = fminf(brush * BRUSH_STEP, BRUSH_MAX);
+            if (IsKeyPressed(KEY_LEFT_BRACKET) || IsKeyPressedRepeat(KEY_LEFT_BRACKET))
+                brush = fmaxf(brush / BRUSH_STEP, BRUSH_MIN);
+        }
+        if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) && !over_panel && !water_mode)
         {
             int index = FindPoint(&level, world, pick_radius);
             if (index >= 0)
@@ -956,7 +1065,7 @@ int main(int argc, char **argv)
         {
             free(curve);
             curve = BuildCurve(&level, &curve_count);
-            RenderLogicMap(&logic, curve, curve_count, level.road_width);
+            RenderLogicMap(&logic, curve, curve_count, level.road_width, water);
             UpdateTexture(texture, logic.data);
         }
         if (message_time > 0.0f)
@@ -987,6 +1096,11 @@ int main(int argc, char **argv)
             DrawCircleLinesV(screen, POINT_RADIUS, BLACK);
             DrawText(TextFormat("%d", i + 1), (int)screen.x + 9,
                      (int)screen.y - 18, 14, WHITE);
+        }
+
+        if (water_mode && !over_panel)
+        {
+            DrawCircleLinesV(mouse, brush * zoom, SKYBLUE);
         }
 
         DrawRectangle((int)panel_x, 0, PANEL_W, win_h, COLOR_PANEL);
@@ -1022,6 +1136,8 @@ int main(int argc, char **argv)
         DrawCircleV((Vector2){road_slider.x + knob_t * road_slider.width, track_y}, 8.0f,
                     over_road ? YELLOW : LIGHTGRAY);
 
+        DrawPanelButton(water_button, water_mode ? TextFormat("Water %d m", (int)(brush / MAP_PIXELS_PER_METER)) : "Water",
+                        CheckCollisionPointRec(mouse, water_button), water_mode);
         DrawPanelButton(theme_button, TextFormat("%s   >", GROUND_THEME_NAMES[level.theme]),
                         CheckCollisionPointRec(mouse, theme_button), false);
         DrawPanelButton(time_button, TextFormat("%s   >", LIGHTING[level.time_of_day].name),
@@ -1037,9 +1153,11 @@ int main(int argc, char **argv)
         // Help at the bottom of the panel
         const char *help[] = {"Click: add a point", "Click point 1: close the road", "Right click: delete a point",
                               "Cmd+Z: undo", "Scroll: move,  Cmd+scroll: zoom"};
+        const char *water_help[] = {"Drag: paint water", "Right drag: take water away", "[ and ]: brush size",
+                                    "The water has no undo", "Scroll: move,  Cmd+scroll: zoom"};
         for (int i = 0; i < 5; i++)
         {
-            DrawText(help[i], (int)x, win_h - 150 + i * 20, FONT_LABEL, COLOR_LABEL);
+            DrawText(water_mode ? water_help[i] : help[i], (int)x, win_h - 150 + i * 20, FONT_LABEL, COLOR_LABEL);
         }
         const char *status = TextFormat("%d points%s,  zoom %d%%", level.count,
                                         level.closed ? " (closed)" : "", (int)roundf(zoom * 100.0f));
@@ -1064,6 +1182,7 @@ int main(int argc, char **argv)
     free(curve);
     UnloadTexture(texture);
     UnloadImage(logic);
+    free(water);
     CloseWindow();
     return 0;
 }

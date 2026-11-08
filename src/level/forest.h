@@ -26,9 +26,9 @@ typedef struct Forest
     Vector2 origin; // map position of the corner of the first cell, the grid starts outside the map
 } Forest;
 
-// Place the trees on both sides of the track
+// Place the trees on both sides of the track, not on the water of the logic map (RGBA, it can be NULL)
 // The same level always gives the same forest
-bool ForestBuild(Forest *forest, const Level *level, const Track *track);
+bool ForestBuild(Forest *forest, const Level *level, const Track *track, const Image *logic);
 void ForestUnload(Forest *forest);
 
 // Return the trees of a cell, or NULL and a count of 0 when the cell is outside of the grid

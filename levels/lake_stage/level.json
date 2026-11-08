@@ -6,14 +6,15 @@
   "logic_map": "level_logic.png",
   "colors": {
     "outside": [40, 150, 50],
-    "road": [130, 90, 50]
+    "road": [130, 90, 50],
+    "water": [40, 90, 160]
   },
   "closed": true,
   "display_name": "Lake Stage",
   "theme": "lakeside",
   "time_of_day": "dusk",
-  "map_events": ["shake"],
   "music": "what_you_want.ogg",
+  "map_events": ["shake"],
   "times_easy": [153.64, 161.19, 168.75, 176.31, 185.12, 193.94, 204.01],
   "times": [132.23, 141.04, 149.86, 157.42, 164.97, 172.53, 182.60],
   "times_hard": [131.90, 134.01, 137.52, 141.73, 146.64, 152.95, 162.78],

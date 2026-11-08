@@ -9,6 +9,7 @@ bool SurfaceMapLoad(SurfaceMap *map, const Level *level, const Image *logic)
     *map = (SurfaceMap){0};
     map->logic = ImageCopy(*logic);
     map->road = level->road_color;
+    map->water = level->water_color;
     return IsImageValid(map->logic);
 }
 
@@ -31,6 +32,10 @@ Surface SurfaceAt(const SurfaceMap *map, Vector2 point)
     }
     const Color *pixels = map->logic.data;
     Color pixel = pixels[y * map->logic.width + x];
-    bool road = pixel.r == map->road.r && pixel.g == map->road.g && pixel.b == map->road.b;
-    return road ? SURFACE_ROAD : SURFACE_GRASS;
+    if (pixel.r == map->road.r && pixel.g == map->road.g && pixel.b == map->road.b)
+    {
+        return SURFACE_ROAD;
+    }
+    bool water = pixel.r == map->water.r && pixel.g == map->water.g && pixel.b == map->water.b;
+    return water ? SURFACE_WATER : SURFACE_GRASS;
 }

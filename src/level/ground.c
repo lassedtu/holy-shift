@@ -229,7 +229,25 @@ static Color Pick(const Color *colors, int count, float value, int x, int y)
     return colors[index];
 }
 
+static Color WithMaterial(Color color, unsigned char material)
+{
+    color.a = material;
+    return color;
+}
+
+static Color RoadSurface(const GroundStyle *style, int x, int y, float inside, float half, unsigned int seed,
+                         bool *puddle);
+
+// A road pixel with the material of the road, or of a puddle
 static Color RoadPixel(const GroundStyle *style, int x, int y, float inside, float half, unsigned int seed)
+{
+    bool puddle = false;
+    Color color = RoadSurface(style, x, y, inside, half, seed, &puddle);
+    return WithMaterial(color, puddle ? GROUND_MATERIAL_PUDDLE : GROUND_MATERIAL_ROAD);
+}
+
+static Color RoadSurface(const GroundStyle *style, int x, int y, float inside, float half, unsigned int seed,
+                         bool *puddle)
 {
     float wobble = Noise((float)x, (float)y, 6.0f, seed + 1) - 0.5f;
     if (inside < 2.5f + 2.0f * wobble)
@@ -251,6 +269,7 @@ static Color RoadPixel(const GroundStyle *style, int x, int y, float inside, flo
         float level = 1.0f - 0.4f * style->puddles;
         if (water > level + 0.03f)
         {
+            *puddle = true;
             return Hash(x, y, seed + 18) < 0.03f ? style->puddle[1] : style->puddle[0];
         }
         if (water > level)
@@ -293,9 +312,19 @@ static Color GroundPixel(const GroundStyle *style, int x, int y, float outside, 
     return Pick(style->ground, 4, value, x, y);
 }
 
+// Paint a detail on the ground, not on the road or on water
+// The water of a lake under its reflection: two dark shades in slow patches, with the material of water
+static Color WaterPixel(int x, int y, unsigned int seed)
+{
+    static const Color shades[2] = {{30, 52, 64, 255}, {38, 62, 76, 255}};
+    float value = Noise((float)x, (float)y, 30.0f, seed + 19) + (Speckle(x, y) - 0.5f) * 0.2f;
+    return WithMaterial(shades[value > 0.5f ? 1 : 0], GROUND_MATERIAL_WATER);
+}
+
 static void Put(Color *pixels, const unsigned char *road, int width, int height, int x, int y, Color color)
 {
-    if (x >= 0 && y >= 0 && x < width && y < height && !road[y * width + x])
+    (void)road;
+    if (x >= 0 && y >= 0 && x < width && y < height && pixels[y * width + x].a == GROUND_MATERIAL_GROUND)
     {
         pixels[y * width + x] = color;
     }
@@ -375,19 +404,23 @@ Image GroundPaint(const Image *logic, const Level *level, const Forest *forest)
     Color *source = LoadImageColors(*logic);
     unsigned char *road = malloc((size_t)count);
     unsigned char *grass = malloc((size_t)count);
+    unsigned char *water = malloc((size_t)count);
     float *inside = malloc((size_t)count * sizeof(float));
     float *outside = malloc((size_t)count * sizeof(float));
     Color *pixels = malloc((size_t)count * sizeof(Color));
-    if (source == NULL || road == NULL || grass == NULL || inside == NULL || outside == NULL || pixels == NULL)
+    if (source == NULL || road == NULL || grass == NULL || water == NULL || inside == NULL || outside == NULL ||
+        pixels == NULL)
     {
         goto done;
     }
 
     Color key = level->road_color;
+    Color lake = level->water_color;
     for (int i = 0; i < count; i++)
     {
         Color c = source[i];
         road[i] = abs(c.r - key.r) + abs(c.g - key.g) + abs(c.b - key.b) < 12;
+        water[i] = !road[i] && abs(c.r - lake.r) + abs(c.g - lake.g) + abs(c.b - lake.b) < 12;
         grass[i] = !road[i];
     }
     Distance(road, inside, width, height);
@@ -401,8 +434,15 @@ Image GroundPaint(const Image *logic, const Level *level, const Forest *forest)
         for (int x = 0; x < width; x++)
         {
             int i = y * width + x;
-            pixels[i] = road[i] ? RoadPixel(style, x, y, inside[i], half, seed)
-                                : GroundPixel(style, x, y, outside[i], seed);
+            if (water[i])
+            {
+                pixels[i] = WaterPixel(x, y, seed);
+            }
+            else
+            {
+                pixels[i] = road[i] ? RoadPixel(style, x, y, inside[i], half, seed)
+                                    : GroundPixel(style, x, y, outside[i], seed);
+            }
         }
     }
     Scatter(pixels, road, outside, width, height, style, seed);
@@ -417,6 +457,7 @@ Image GroundPaint(const Image *logic, const Level *level, const Forest *forest)
 
 done:
     UnloadImageColors(source);
+    free(water);
     free(road);
     free(grass);
     free(inside);

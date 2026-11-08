@@ -67,17 +67,17 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
 
     PaceNotesBuild(&game->notes, &game->track);
 
-    if (!ForestBuild(&game->forest, &game->level, &game->track))
-    {
-        snprintf(message, size, "Could not place the trees for \"%s\"", name);
-        GameShutdown(game);
-        return false;
-    }
-
     // The road of the logic map has the width of medium, other difficulties paint it again
     Image logic;
     if (!LogicMapLoad(&logic, &game->level, &game->track, game->difficulty != DIFFICULTY_MEDIUM, message, size))
     {
+        GameShutdown(game);
+        return false;
+    }
+    if (!ForestBuild(&game->forest, &game->level, &game->track, &logic))
+    {
+        snprintf(message, size, "Could not place the trees for \"%s\"", name);
+        UnloadImage(logic);
         GameShutdown(game);
         return false;
     }
@@ -228,12 +228,18 @@ void GameUpdate(Game *game, float dt)
         Vector2 right = {-forward.y, forward.x};
         Vector2 center = Vector2Add(game->car.position, Vector2Add(Vector2Scale(forward, CAR_EYE_BACK),
                                                                    Vector2Scale(right, CAR_EYE_LEFT)));
-        if (ForestHit(&game->forest, center, game->car.heading, CAR_LENGTH, CAR_WIDTH))
+        bool in_water = SurfaceAt(&game->surface, center) == SURFACE_WATER;
+        if (in_water || ForestHit(&game->forest, center, game->car.heading, CAR_LENGTH, CAR_WIDTH))
         {
             game->crash_time = 0.0f;
             game->car.speed = 0.0f;
             game->car.slip = 0.0f;
             CarAudioCrash(&game->audio);
+            if (in_water)
+            {
+                SpeechClear(&game->speech);
+                SpeechSay(&game->speech, (SpeechLine){"luka", "scared", "Grandma! The lake!", ""});
+            }
         }
     }
     PaceMapUpdate(&game->map, &game->track, &game->car, dt);
@@ -255,6 +261,9 @@ void GameUpdate(Game *game, float dt)
                 SpeechSay(&game->speech, line);
             }
         }
+    }
+    if (game->mode == GAME_MODE_NORMAL)
+    {
         SpeechUpdate(&game->speech, dt);
     }
     if (!crashed)

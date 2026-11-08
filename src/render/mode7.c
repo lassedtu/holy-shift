@@ -83,6 +83,11 @@ void Mode7Render(Mode7 *mode7, Texture2D ground, Mode7Camera camera, const Light
     ShaderSetFloat(shader, "hazeHeight", tallest * Mode7Focal() / light->fog_end);
     SetShaderValue(shader, GetShaderLocation(shader, "tint"), &light->tint, SHADER_UNIFORM_VEC3);
     ShaderSetFloat(shader, "headlights", light->headlights);
+    ShaderSetFloat(shader, "wetness", light->wetness);
+    ShaderSetFloat(shader, "time", (float)GetTime());
+    ShaderSetColor(shader, "glintColor", light->glint);
+    ShaderSetFloat(shader, "glintRate", light->glint.a / 255.0f);
+    ShaderSetVec2(shader, "sunDir", cosf(SUN_AZIMUTH_DEG * DEG2RAD), sinf(SUN_AZIMUTH_DEG * DEG2RAD));
     ShaderSetVec2(shader, "carDir", cosf(camera.car_heading), sinf(camera.car_heading));
     ShaderSetVec2(shader, "mapSize", (float)ground.width, (float)ground.height);
     ShaderSetVec2(shader, "camPos", camera.position.x, camera.position.y);

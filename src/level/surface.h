@@ -11,7 +11,8 @@
 typedef enum Surface
 {
     SURFACE_ROAD,
-    SURFACE_GRASS
+    SURFACE_GRASS,
+    SURFACE_WATER // a lake, driving into it is a crash
 } Surface;
 
 // The logic map of a level in memory, for the rules of the game
@@ -19,6 +20,7 @@ typedef struct SurfaceMap
 {
     Image logic;
     Color road;
+    Color water;
 } SurfaceMap;
 
 // Keep a copy of the logic map of a level (see level/logic_map.h), return false when there is not enough memory

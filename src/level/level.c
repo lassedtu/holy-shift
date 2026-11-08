@@ -261,10 +261,15 @@ bool LevelLoad(Level *level, const char *name, char *message, size_t size)
 
     loaded.road_color = COLOR_ROAD;
     loaded.outside_color = COLOR_OUTSIDE;
+    loaded.water_color = COLOR_WATER;
     float color[3];
     if (JsonReadNumberArray(text, "road", color, 3) == 3)
     {
         loaded.road_color = (Color){(unsigned char)color[0], (unsigned char)color[1], (unsigned char)color[2], 255};
+    }
+    if (JsonReadNumberArray(text, "water", color, 3) == 3)
+    {
+        loaded.water_color = (Color){(unsigned char)color[0], (unsigned char)color[1], (unsigned char)color[2], 255};
     }
     if (JsonReadNumberArray(text, "outside", color, 3) == 3)
     {

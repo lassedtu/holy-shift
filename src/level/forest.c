@@ -193,7 +193,35 @@ static bool ForestStore(Forest *forest, const Tree *trees, int count)
     return true;
 }
 
-bool ForestBuild(Forest *forest, const Level *level, const Track *track)
+// Return true when there is water at a point of the logic map, or near it (FOREST_WATER_MARGIN)
+static bool NearWater(const Image *logic, Color water, Vector2 point)
+{
+    if (logic == NULL)
+    {
+        return false;
+    }
+    const Color *pixels = logic->data;
+    for (int dy = -1; dy <= 1; dy++)
+    {
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            int x = (int)(point.x + (float)dx * FOREST_WATER_MARGIN);
+            int y = (int)(point.y + (float)dy * FOREST_WATER_MARGIN);
+            if (x < 0 || y < 0 || x >= logic->width || y >= logic->height)
+            {
+                continue;
+            }
+            Color c = pixels[y * logic->width + x];
+            if (c.r == water.r && c.g == water.g && c.b == water.b)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool ForestBuild(Forest *forest, const Level *level, const Track *track, const Image *logic)
 {
     *forest = (Forest){0};
 
@@ -249,7 +277,7 @@ bool ForestBuild(Forest *forest, const Level *level, const Track *track)
 
             bool inside = point.x < forest->origin.x + width && point.y < forest->origin.y + height;
             if (variant_count == 0 || !inside || count >= FOREST_MAX_TREES ||
-                NearRoad(&road, track, point, road_clearance) ||
+                NearRoad(&road, track, point, road_clearance) || NearWater(logic, level->water_color, point) ||
                 NearTree(&spacing, placed, point))
             {
                 continue;

@@ -25,43 +25,45 @@
 #define SHADER_COCKPIT_PATH "src/render/shaders/cockpit.fs"
 #define SHADER_TREES_PATH "src/render/shaders/trees.fs"
 #define SHADER_SHADOW_PATH "src/render/shaders/shadow.fs"
-#define TREE_SHEET_DIR "assets/trees"                       // the pictures of the trees, see level/tree_species.h
-#define SOUND_SCREECH_PATH "assets/sounds/tire_screech.wav" // made by scripts/screech_loop.py
-#define SOUND_GEAR_PATH "assets/sounds/gear_change.wav"     // made by scripts/sound_clips.py
+#define TREE_SHEET_DIR "assets/trees"                          // the pictures of the trees, see level/tree_species.h
+#define SOUND_SCREECH_PATH "assets/sounds/tire_screech.wav"    // made by scripts/screech_loop.py
+#define SOUND_GEAR_PATH "assets/sounds/gear_change.wav"        // made by scripts/sound_clips.py
 #define MUSIC_MENU_PATH "assets/music/welcome_to_the_show.ogg" // "Welcome to the Show" by Kevin MacLeod, CC BY 4.0
-#define MUSIC_DIR "assets/music" // the music of the levels ("music" in level.json), see the credits in README.md
-#define MUSIC_MENU_VOLUME 0.55f  // the menu music is this loud at full volume, the volumes of the settings multiply it
-#define MUSIC_SCENE_VOLUME 0.55f // the music of the story scenes ("music" in a .scene file)
-#define MUSIC_DRIVE_VOLUME 0.40f // the music while driving is quieter, so the engine and the map are clear
-#define MUSIC_FADE_SECONDS 1.2f  // the music fades in and out in this time
-#define UI_DIR "assets/ui"                                  // Kenney Pixel UI Pack (CC0), see assets/ui/Kenney-License.txt
-#define STORY_ORDER_PATH "assets/story/story.order" // the order of the scenes and the stages of the story mode
-#define STORY_SCENES_DIR "assets/story/scenes"      // the .scene files
-#define STORY_IMAGES_DIR "assets/story/images"      // the pictures of the scenes, made by scripts/pixelate.py
-#define STORY_PORTRAITS_DIR "assets/story/portraits" // the pictures of the speakers, 40 x 40 pixels
-#define STORY_PICTURE_SCALE 2 // game pixels for each pixel of a story picture, a picture of 320 x 180 fills the view
-#define SAVE_PATH "save.txt"                                // the settings and the best times
-#define FONT_PATH "assets/fonts/Jersey15-Regular.ttf"       // Jersey 15, SIL Open Font License, see assets/fonts/
-#define FONT_GRID 27 // the font is sharp at multiples of this size, one pixel of the font is 1/27 of the size
-#define SOUND_CRASH_PATH "assets/sounds/crash.wav"          // made by scripts/sound_clips.py
+#define MUSIC_DIR "assets/music"                               // the music of the levels ("music" in level.json), see the credits in README.md
+#define MUSIC_MENU_VOLUME 0.55f                                // the menu music is this loud at full volume, the volumes of the settings multiply it
+#define MUSIC_SCENE_VOLUME 0.55f                               // the music of the story scenes ("music" in a .scene file)
+#define MUSIC_DRIVE_VOLUME 0.40f                               // the music while driving is quieter, so the engine and the map are clear
+#define MUSIC_FADE_SECONDS 1.2f                                // the music fades in and out in this time
+#define UI_DIR "assets/ui"                                     // Kenney Pixel UI Pack (CC0), see assets/ui/Kenney-License.txt
+#define STORY_ORDER_PATH "assets/story/story.order"            // the order of the scenes and the stages of the story mode
+#define STORY_SCENES_DIR "assets/story/scenes"                 // the .scene files
+#define STORY_IMAGES_DIR "assets/story/images"                 // the pictures of the scenes, made by scripts/pixelate.py
+#define STORY_PORTRAITS_DIR "assets/story/portraits"           // the pictures of the speakers, 40 x 40 pixels
+#define STORY_PICTURE_SCALE 2                                  // game pixels for each pixel of a story picture, a picture of 320 x 180 fills the view
+#define SAVE_PATH "save.txt"                                   // the settings and the best times
+#define FONT_PATH "assets/fonts/Jersey15-Regular.ttf"          // Jersey 15, SIL Open Font License, see assets/fonts/
+#define FONT_GRID 27                                           // the font is sharp at multiples of this size, one pixel of the font is 1/27 of the size
+#define SOUND_CRASH_PATH "assets/sounds/crash.wav"             // made by scripts/sound_clips.py
 
 // Map
 #define MAP_PIXELS_PER_METER 8.0f // the road is 6 meters wide
 
 // Road view (Mode 7)
-#define CAMERA_HEIGHT 11.0f // map pixels above the road
-#define HEADLIGHT_NEAR 80.0f           // map pixels, the headlights are full until here
-#define HEADLIGHT_FAR 480.0f           // and fade out until here
-#define HEADLIGHT_HALF_ANGLE_DEG 22.0f // the light cone of one headlight, from its middle to its side
-#define HEADLIGHT_TOE_DEG 11.0f        // each headlight points this far out to its side
-#define HEADLIGHT_SPACING 5.0f         // map pixels from the middle of the car to each headlight
+#define CAMERA_HEIGHT 11.0f                                  // map pixels above the road
+#define HEADLIGHT_NEAR 80.0f                                 // map pixels, the headlights are full until here
+#define HEADLIGHT_FAR 480.0f                                 // and fade out until here
+#define HEADLIGHT_HALF_ANGLE_DEG 22.0f                       // the light cone of one headlight, from its middle to its side
+#define HEADLIGHT_TOE_DEG 11.0f                              // each headlight points this far out to its side
+#define HEADLIGHT_SPACING 5.0f                               // map pixels from the middle of the car to each headlight
 #define HEADLIGHT_FORWARD (CAR_EYE_BACK + CAR_LENGTH / 2.0f) // the headlights are this far in front of the eye
-#define HEADLIGHT_RIGHT CAR_EYE_LEFT   // the middle of the car is this far right of the eye
-#define HEADLIGHT_BANDS 4.0f           // the light has this many steps, so it keeps the pixel look
-#define FOG_END 500.0f      // no tree is drawn further away, the fog of the time of day (level/time_of_day.h) ends here or nearer
-#define HAZE_FADE 45.0f     // rows over which the fog at the horizon changes into the sky
-#define COLOR_OUTSIDE ((Color){40, 150, 50, 255}) // color outside of the map
-#define COLOR_ROAD ((Color){130, 90, 50, 255})    // color of the road in the logic map when the level file has no color
+#define HEADLIGHT_RIGHT CAR_EYE_LEFT                         // the middle of the car is this far right of the eye
+#define HEADLIGHT_BANDS 4.0f                                 // the light has this many steps, so it keeps the pixel look
+#define SUN_AZIMUTH_DEG 200.0f                               // the sun is in this map direction in every level (0 is +x), the glints face it
+#define FOG_END 500.0f                                       // no tree is drawn further away, the fog of the time of day (level/time_of_day.h) ends here or nearer
+#define HAZE_FADE 45.0f                                      // rows over which the fog at the horizon changes into the sky
+#define COLOR_OUTSIDE ((Color){40, 150, 50, 255})            // color outside of the map
+#define COLOR_ROAD ((Color){130, 90, 50, 255})               // color of the road in the logic map when the level file has no color
+#define COLOR_WATER ((Color){40, 90, 160, 255})              // color of a lake in the logic map when the level file has no color
 
 // Forest
 // The forest is placed once when a level loads, in rows along both sides of the road
@@ -82,6 +84,7 @@
 #define CAR_EYE_BACK 1.0f // the eye of the driver is this far behind the centre of the car
 #define CAR_EYE_LEFT 3.0f // the eye of the driver is this far left of the centre of the car
 #define FOREST_SEED 1234u
+#define FOREST_WATER_MARGIN 12.0f // no trunk this near a lake, in map pixels
 #define FOREST_ROAD_MARGIN 14.0f // free space between the road edge and the nearest trunk
 #define FOREST_SPACING 26.0f     // size of the squares that get one tree each
 #define FOREST_MIN_SPACING 15.0f // two trunks are never closer than this

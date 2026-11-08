@@ -35,6 +35,7 @@ typedef struct Level
     int road_width;
     Color road_color;               // color of the road in the logic map
     Color outside_color;            // color of the ground next to the road in the logic map
+    Color water_color;              // color of a lake in the logic map
     bool trees[TREE_SPECIES_COUNT]; // the species of trees around the road
     GroundTheme ground_theme;       // the look of the ground, GROUND_FOREST when the file has no theme
     TimeOfDay time_of_day;          // the light of the stage, TIME_DAY when the file has no time of day
