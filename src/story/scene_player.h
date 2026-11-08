@@ -4,16 +4,20 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "game/standings.h"
+#include "level/level.h"
 #include "raylib.h"
 #include "story/scene.h"
 #include "ui/ui.h"
 
 #define SCENE_MAX_TEXTURES 64
+#define SCENE_PICTURE_NONE -1
+#define SCENE_PICTURE_BOARD -2 // the results board in place of a picture
 
 // A picture of a scene on the screen
 typedef struct ScenePicture
 {
-    int texture;    // index in the textures of the player, -1 for no picture
+    int texture;    // index in the textures of the player, SCENE_PICTURE_NONE or SCENE_PICTURE_BOARD
     Vector2 offset; // the top left corner of the part of the picture on the screen, in picture pixels
     Vector2 pan_from;
     Vector2 pan_to;
@@ -46,11 +50,18 @@ typedef struct ScenePlayer
     float wait;  // seconds left of a wait command
     float time;
     bool done;
+    Standings board; // the standings that a board command shows
+    char board_title[LEVEL_MAX_NAME];
+    bool has_board;
 } ScenePlayer;
 
 // Load a scene and its pictures, write the reason in message when it fails
 bool ScenePlayerStart(ScenePlayer *player, const char *name, char *message, size_t size);
 void ScenePlayerStop(ScenePlayer *player);
+
+// Set the standings and the name of the level that the board command shows
+// Without them, the board shows no rows
+void ScenePlayerSetBoard(ScenePlayer *player, const Standings *standings, const char *title);
 
 // advance is true in the frame when the player clicks or presses Space or Enter, skip when the player presses Esc
 void ScenePlayerUpdate(ScenePlayer *player, float dt, bool advance, bool skip);

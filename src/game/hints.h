@@ -13,6 +13,11 @@
 // does what it says, or after some seconds
 typedef enum HintId
 {
+    HINT_INTRO_LOOK, // the intro before the countdown, one step after the other
+    HINT_INTRO_MAP,
+    HINT_INTRO_NOTES,
+    HINT_INTRO_GEARS,
+    HINT_INTRO_READY,
     HINT_STALL, // the first hints have priority
     HINT_LAUNCH,
     HINT_SHIFT_UP,
@@ -36,6 +41,7 @@ typedef struct HintInput
     bool on_grass;
     bool braking;
     bool handbrake;
+    bool throttle;
 } HintInput;
 
 typedef struct Hints
@@ -49,6 +55,9 @@ typedef struct Hints
     int start_gear;
     float grass_time;
     float road_time;
+    float look_left;  // the largest head yaw to the left and to the right in the intro, degrees
+    float look_right;
+    bool intro_done; // the player finished the last step of the intro
     Texture2D portrait;
 } Hints;
 
@@ -60,6 +69,9 @@ void HintsUnload(Hints *hints);
 void HintsReset(Hints *hints);
 
 void HintsUpdate(Hints *hints, const HintInput *input, float dt);
+
+// Return true when the player finished the intro, then the countdown can start
+bool HintsIntroDone(const Hints *hints);
 void HintsDraw(const Hints *hints, const Ui *ui);
 
 #endif

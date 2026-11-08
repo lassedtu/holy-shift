@@ -132,6 +132,11 @@ static bool ParseCommand(SceneCommand *command, char *line)
     {
         return ParsePan(command, arguments);
     }
+    if (strcmp(word, "board") == 0)
+    {
+        command->type = SCENE_BOARD;
+        return sscanf(arguments, "%63s", command->name) == 1;
+    }
     if (strcmp(word, "fade") == 0)
     {
         command->type = SCENE_FADE;

@@ -17,7 +17,7 @@
 static void RestartStage(Game *game, bool fade)
 {
     PlayerDriverInit(&game->player_driver, &game->surface, &game->track, &game->car);
-    StageStart(&game->stage, &game->track);
+    StageStart(&game->stage, &game->track, false);
     PaceMapReset(&game->map, &game->track, &game->car);
     HintsReset(&game->hints);
     game->crash_time = -1.0f;
@@ -94,7 +94,7 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
     {
         game->driver = &game->player_driver.base;
         PlayerDriverInit(&game->player_driver, &game->surface, &game->track, &game->car);
-        StageStart(&game->stage, &game->track);
+        StageStart(&game->stage, &game->track, game->level.tutorial); // only the first drive has the intro
     }
 
     float pitch_min;
@@ -146,8 +146,13 @@ static void UpdateHints(Game *game, float dt)
         .on_grass = SurfaceAt(&game->surface, game->car.position) == SURFACE_GRASS,
         .braking = IsKeyDown(KEY_S),
         .handbrake = IsKeyDown(KEY_SPACE),
+        .throttle = IsKeyDown(KEY_W) || IsKeyDown(KEY_UP),
     };
     HintsUpdate(&game->hints, &input, dt);
+    if (!game->hints.enabled || HintsIntroDone(&game->hints))
+    {
+        StageEndIntro(&game->stage);
+    }
 }
 
 void GameUpdate(Game *game, float dt)
@@ -184,7 +189,7 @@ void GameUpdate(Game *game, float dt)
         {
             RestartStage(game, false);
         }
-        game->player_driver.hold = game->stage.phase == STAGE_COUNTDOWN;
+        game->player_driver.hold = game->stage.phase == STAGE_COUNTDOWN || game->stage.phase == STAGE_INTRO;
     }
     if (game->driver != NULL && !crashed)
     {

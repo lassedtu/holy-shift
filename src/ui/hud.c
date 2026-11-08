@@ -83,7 +83,11 @@ void HudDraw(const Car *car, const Stage *stage, const char *title, Rectangle de
     TextDraw(HudFormatTime(stage->time), x, bar_y + bar_height + (int)(2 * scale), size, WHITE);
     int big = (int)(HUD_BIG_FONT_SIZE * scale);
     float middle = destination.y + destination.height * 0.3f;
-    if (stage->phase == STAGE_COUNTDOWN)
+    if (stage->phase == STAGE_INTRO && title != NULL)
+    {
+        DrawCentered(title, destination, middle - (float)size * 2.5f, size * 2, WHITE);
+    }
+    else if (stage->phase == STAGE_COUNTDOWN)
     {
         DrawCentered(TextFormat("%d", (int)ceilf(stage->countdown)), destination, middle, big, WHITE);
         if (title != NULL)

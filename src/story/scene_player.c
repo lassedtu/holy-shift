@@ -6,10 +6,12 @@
 #include <string.h>
 
 #include "core/config.h"
+#include "ui/hud.h"
 
 #define PICTURE_WIDTH (VIEW_WIDTH / STORY_PICTURE_SCALE) // picture pixels on the screen
 #define DIALOGUE_BAND 120 // height of the dark area for the dialogue at the bottom, in game pixels
 #define PICTURE_HEIGHT ((VIEW_HEIGHT - DIALOGUE_BAND) / STORY_PICTURE_SCALE) // picture pixels above the dark area
+#define BOARD_TEXT_SIZE 15
 #define CROSS_SECONDS 0.5f // a new picture fades in over the last picture in this time
 #define FADE_SECONDS 0.6f  // the screen fades to black or back in this time
 #define ALONE_SECONDS 1.6f // a new picture shows without the dialogue box for this time, the fade in is part of it
@@ -104,8 +106,8 @@ bool ScenePlayerStart(ScenePlayer *player, const char *name, char *message, size
         ScenePlayerStop(player);
         return false;
     }
-    player->current.texture = -1;
-    player->previous.texture = -1;
+    player->current.texture = SCENE_PICTURE_NONE;
+    player->previous.texture = SCENE_PICTURE_NONE;
     player->cross = 1.0f;
     player->black = 1.0f; // the scene fades in from black
     return true;
@@ -122,6 +124,13 @@ void ScenePlayerStop(ScenePlayer *player)
     *player = (ScenePlayer){0};
 }
 
+void ScenePlayerSetBoard(ScenePlayer *player, const Standings *standings, const char *title)
+{
+    player->board = *standings;
+    snprintf(player->board_title, sizeof(player->board_title), "%s", title);
+    player->has_board = true;
+}
+
 bool ScenePlayerDone(const ScenePlayer *player)
 {
     return player->done;
@@ -129,6 +138,10 @@ bool ScenePlayerDone(const ScenePlayer *player)
 
 static Vector2 PictureSlack(const ScenePlayer *player, const ScenePicture *picture)
 {
+    if (picture->texture < 0)
+    {
+        return (Vector2){0.0f, 0.0f};
+    }
     Texture2D texture = player->textures[picture->texture];
     return (Vector2){fmaxf((float)(texture.width - PICTURE_WIDTH), 0.0f),
                      fmaxf((float)(texture.height - PICTURE_HEIGHT), 0.0f)};
@@ -137,7 +150,9 @@ static Vector2 PictureSlack(const ScenePlayer *player, const ScenePicture *pictu
 static void ShowPicture(ScenePlayer *player, const SceneCommand *command)
 {
     player->previous = player->current;
-    player->current = (ScenePicture){.texture = TextureIndex(player, STORY_IMAGES_DIR, command->name)};
+    int texture = command->type == SCENE_BOARD ? SCENE_PICTURE_BOARD
+                                               : TextureIndex(player, STORY_IMAGES_DIR, command->name);
+    player->current = (ScenePicture){.texture = texture};
     Vector2 slack = PictureSlack(player, &player->current);
     Vector2 offset = {slack.x / 2.0f, slack.y / 2.0f};
     switch (command->anchor)
@@ -161,7 +176,7 @@ static void ShowPicture(ScenePlayer *player, const SceneCommand *command)
     player->alone = ALONE_SECONDS;
 
     // After a fade the new picture comes in from black, else it fades in over the last picture
-    if (player->black_target > 0.0f || player->previous.texture < 0)
+    if (player->black_target > 0.0f || player->previous.texture == SCENE_PICTURE_NONE)
     {
         player->cross = 1.0f;
         player->black_target = 0.0f;
@@ -218,6 +233,7 @@ static void Run(ScenePlayer *player)
         switch (command->type)
         {
         case SCENE_IMAGE:
+        case SCENE_BOARD:
             ShowPicture(player, command);
             break;
         case SCENE_PAN:
@@ -341,8 +357,65 @@ void ScenePlayerUpdate(ScenePlayer *player, float dt, bool advance, bool skip)
     }
 }
 
+// A timing board on a dark wall: the place, the name, the time and the gap to the winner of each driver
+// The row of the player is lit
+static void DrawBoard(const ScenePlayer *player, const Ui *ui, float alpha)
+{
+    const Color wall = {28, 30, 34, 255};
+    const Color board = {14, 15, 18, 255};
+    const Color frame = {70, 72, 78, 255};
+    const Color amber = {255, 186, 72, 255};
+    const Color dim = {150, 112, 52, 255};
+    const Color lit = {255, 224, 140, 255};
+
+    float band = VIEW_HEIGHT - DIALOGUE_BAND;
+    UiFill(ui, (Rectangle){0, 0, VIEW_WIDTH, band}, Fade(wall, alpha));
+    float width = 330.0f;
+    float row_height = 19.0f;
+    float height = 44.0f + STANDINGS_DRIVERS * row_height + 10.0f;
+    Rectangle box = {floorf((VIEW_WIDTH - width) / 2.0f), floorf((band - height) / 2.0f), width, height};
+    UiFill(ui, (Rectangle){box.x - 4.0f, box.y - 4.0f, box.width + 8.0f, box.height + 8.0f}, Fade(frame, alpha));
+    UiFill(ui, box, Fade(board, alpha));
+
+    float middle = box.x + box.width / 2.0f;
+    UiTextCentered(ui, TextFormat("%s - RESULTS", player->board_title), middle, box.y + 8.0f, BOARD_TEXT_SIZE,
+                   Fade(amber, alpha));
+    UiFill(ui, (Rectangle){box.x + 10.0f, box.y + 34.0f, box.width - 20.0f, 1.0f}, Fade(dim, alpha));
+    if (!player->has_board)
+    {
+        return;
+    }
+    float left = box.x + 16.0f;
+    float right = box.x + box.width - 16.0f;
+    float y = box.y + 42.0f;
+    float winner = player->board.rows[0].time;
+    for (int i = 0; i < STANDINGS_DRIVERS; i++)
+    {
+        const StandingsRow *row = &player->board.rows[i];
+        Color ink = row->player ? board : amber;
+        if (row->player)
+        {
+            UiFill(ui, (Rectangle){box.x + 8.0f, y - 1.0f, box.width - 16.0f, row_height}, Fade(lit, alpha));
+        }
+        UiText(ui, TextFormat("%d", i + 1), left, y - 2.0f, BOARD_TEXT_SIZE, Fade(ink, alpha));
+        UiText(ui, row->name, left + 26.0f, y - 2.0f, BOARD_TEXT_SIZE, Fade(ink, alpha));
+        const char *time = HudFormatTime(row->time);
+        UiText(ui, time, right - 70.0f - UiTextWidth(ui, time, BOARD_TEXT_SIZE), y - 2.0f, BOARD_TEXT_SIZE,
+               Fade(ink, alpha));
+        const char *gap = i == 0 ? "" : TextFormat("+%.2f", row->time - winner);
+        UiText(ui, gap, right - UiTextWidth(ui, gap, BOARD_TEXT_SIZE), y - 2.0f, BOARD_TEXT_SIZE,
+               Fade(row->player ? board : dim, alpha));
+        y += row_height;
+    }
+}
+
 static void DrawPicture(const ScenePlayer *player, const Ui *ui, const ScenePicture *picture, float alpha)
 {
+    if (picture->texture == SCENE_PICTURE_BOARD && alpha > 0.0f)
+    {
+        DrawBoard(player, ui, alpha);
+        return;
+    }
     if (picture->texture < 0 || alpha <= 0.0f)
     {
         return;

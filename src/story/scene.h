@@ -14,6 +14,8 @@
 //                                   the part (top, bottom, left or right) is the part of a large picture that
 //                                   shows, the middle when there is no part
 //   pan <left|right|up|down> <s>    move the view over a picture that is larger than the screen, in <s> seconds
+//   board <level>                   show the results board of a level in place of a picture, with the last time of the
+//                                   player on the level in the story (see ScenePlayerSetBoard)
 //   fade                            fade to black, the next picture fades in from black
 //   wait <s>                        show the picture for <s> seconds without text
 //   <Speaker>: <text>               a line of dialogue, with the portrait <speaker>.png from STORY_PORTRAITS_DIR
@@ -22,6 +24,7 @@
 typedef enum SceneCommandType
 {
     SCENE_IMAGE,
+    SCENE_BOARD,
     SCENE_PAN,
     SCENE_FADE,
     SCENE_WAIT,
@@ -48,7 +51,7 @@ typedef enum SceneAnchor
 typedef struct SceneCommand
 {
     SceneCommandType type;
-    char name[SCENE_MAX_NAME];     // the file of a picture, or the portrait of a line ("" when there is no speaker)
+    char name[SCENE_MAX_NAME];     // the file of a picture, the level of a board, or the portrait of a line ("" when there is no speaker)
     char fallback[SCENE_MAX_NAME]; // the portrait of a line when the portrait of the mood is missing
     char text[SCENE_MAX_TEXT];
     ScenePan pan;

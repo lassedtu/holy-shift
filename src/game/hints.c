@@ -17,6 +17,8 @@
 #define GRASS_SECONDS 1.5f     // seconds on the grass before the hint about the grass
 #define ROAD_SECONDS 1.0f      // seconds back on the road before the hint about the grass goes away
 #define LAUNCH_AFTER_GO 1.0f   // the hint about the launch stays this long after the start
+#define LOOK_AROUND_YAW 30.0f  // the player has looked around after the head turned this far to the left and the right
+#define READ_SECONDS 4.0f      // the shortest time of the intro steps that only explain
 
 // The box, in game pixels: smaller than the dialogue of the scenes, so it is not in the way
 #define TEXT_SIZE 15
@@ -34,13 +36,18 @@ typedef struct HintText
 } HintText;
 
 static const HintText TEXTS[HINT_COUNT] = {
-    [HINT_STALL] = {"You stalled it. Shift down.", "Left mouse or Q"},
+    [HINT_INTRO_LOOK] = {"This is our old Jugo. Have a look around.", "Move the mouse to look"},
+    [HINT_INTRO_MAP] = {"Luka holds the map. He can't look at the road.", "Look to the right at the map"},
+    [HINT_INTRO_NOTES] = {"The map calls the next corner. Red means slow.", "Look at it often while you drive"},
+    [HINT_INTRO_GEARS] = {"There is no automatic. You shift the gears.", "Right mouse or E up, left mouse or Q down"},
+    [HINT_INTRO_READY] = {"Eyes on the road. Ready when you are.", "Press W to start the countdown"},
+    [HINT_STALL] = {"You stalled it. Shift down and it starts again.", "Left mouse or Q"},
     [HINT_LAUNCH] = {"Give it some gas. Not too much.", "Hold W, keep the needle in the green"},
     [HINT_SHIFT_UP] = {"Hear that? Shift up.", "Right mouse or E"},
     [HINT_BRAKE] = {"Brake before the corner, not in it.", "S to brake, left mouse or Q to shift down"},
     [HINT_HANDBRAKE] = {"Tight one. Use the handbrake.", "Space"},
-    [HINT_MAP] = {"Luka has the map. Look at it.", "Move the mouse to the right"},
-    [HINT_GRASS] = {"That's a field. The road is over there.", ""},
+    [HINT_MAP] = {"Check Luka's map for the next corner.", "Look to the right"},
+    [HINT_GRASS] = {"That's a field. Get back on the road.", ""},
 };
 
 void HintsInit(Hints *hints, bool enabled)
@@ -75,6 +82,24 @@ void HintsReset(Hints *hints)
     hints->slide = 0.0f;
     hints->grass_time = 0.0f;
     hints->road_time = 0.0f;
+    hints->look_left = 0.0f;
+    hints->look_right = 0.0f;
+    hints->intro_done = false;
+}
+
+bool HintsIntroDone(const Hints *hints)
+{
+    return hints->intro_done;
+}
+
+static bool Intro(const HintInput *input)
+{
+    return input->stage->phase == STAGE_INTRO;
+}
+
+static bool IsIntroHint(int id)
+{
+    return id >= HINT_INTRO_LOOK && id <= HINT_INTRO_READY;
 }
 
 static bool Running(const HintInput *input)
@@ -93,6 +118,13 @@ static bool Starts(const Hints *hints, HintId id, const HintInput *input)
     const Car *car = input->car;
     switch (id)
     {
+    case HINT_INTRO_LOOK:
+        return Intro(input);
+    case HINT_INTRO_MAP:
+    case HINT_INTRO_NOTES:
+    case HINT_INTRO_GEARS:
+    case HINT_INTRO_READY:
+        return Intro(input) && hints->shown[id - 1];
     case HINT_STALL:
         return Running(input) && car->engine_off;
     case HINT_LAUNCH:
@@ -120,6 +152,15 @@ static bool Done(const Hints *hints, const HintInput *input)
     const Car *car = input->car;
     switch ((HintId)hints->active)
     {
+    case HINT_INTRO_LOOK:
+        return fminf(hints->look_left, hints->look_right) >= LOOK_AROUND_YAW && hints->time >= 1.0f;
+    case HINT_INTRO_MAP:
+        return input->map_visible && input->head_yaw > MAP_LOOK_YAW;
+    case HINT_INTRO_NOTES:
+    case HINT_INTRO_GEARS:
+        return hints->time >= READ_SECONDS;
+    case HINT_INTRO_READY:
+        return input->throttle;
     case HINT_STALL:
         return !car->engine_off;
     case HINT_LAUNCH:
@@ -161,14 +202,28 @@ void HintsUpdate(Hints *hints, const HintInput *input, float dt)
     }
     hints->grass_time = input->on_grass ? hints->grass_time + dt : 0.0f;
     hints->road_time = input->on_grass ? 0.0f : hints->road_time + dt;
+    if (hints->active == HINT_INTRO_LOOK)
+    {
+        hints->look_left = fmaxf(hints->look_left, -input->head_yaw);
+        hints->look_right = fmaxf(hints->look_right, input->head_yaw);
+    }
 
     if (hints->active >= 0)
     {
         hints->time += dt;
         hints->slide = fminf(hints->slide + dt / SLIDE_SECONDS, 1.0f);
-        bool timeout = hints->active != HINT_LAUNCH && hints->active != HINT_STALL && hints->time >= HINT_SECONDS;
+        bool timeout = hints->active != HINT_LAUNCH && hints->active != HINT_STALL && !IsIntroHint(hints->active) &&
+                       hints->time >= HINT_SECONDS;
         if (Done(hints, input) || timeout)
         {
+            if (hints->active == HINT_INTRO_READY)
+            {
+                hints->intro_done = true;
+            }
+            if (hints->active == HINT_INTRO_MAP)
+            {
+                hints->shown[HINT_MAP] = true; // the player knows the map now
+            }
             hints->closing = hints->active;
             hints->active = -1;
         }

@@ -21,7 +21,7 @@ scene 01_club_rally
 stage club_rally          # 1: club_rally, the map, day
 
 scene 02_glory_days
-stage forrest_stage       # 2: forest, map events start (the sick bag), overcast
+stage forest_stage        # 2: forest, map events start (the sick bag), overcast
 
 scene 03_sick_bag
 scene 04_mud

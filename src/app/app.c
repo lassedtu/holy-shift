@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "core/config.h"
+#include "level/track.h"
 #include "render/present.h"
 #include "ui/hud.h"
 
@@ -19,6 +20,7 @@
 #define LABEL_SIZE 15
 #define COLOR_TITLE ((Color){255, 204, 0, 255})
 #define COLOR_SHADOW ((Color){40, 24, 12, 255})
+#define BOARD_DEFAULT_SPEED 13.0f // meters each second of the player on a board, when there is no time
 #define COLOR_INK ((Color){60, 40, 24, 255})
 #define COLOR_WARNING ((Color){230, 90, 40, 255})
 #define COLOR_HIGHLIGHT ((Color){244, 210, 110, 255}) // the row of the player in the standings
@@ -89,6 +91,43 @@ static void StopScene(App *app)
 }
 
 // Go to the step of the story mode in the settings, the menu opens after the last step
+// Give the board of the scene the standings of its level, with the last time of the player in the story
+// Without a time (for example with --screen scene:<name>), the best time or a time from the length is used
+static void PrepareBoard(App *app)
+{
+    const Scene *scene = &app->scene.scene;
+    for (int i = 0; i < scene->count; i++)
+    {
+        if (scene->commands[i].type != SCENE_BOARD)
+        {
+            continue;
+        }
+        static Level level;
+        Track track;
+        char message[256];
+        const char *name = scene->commands[i].name;
+        if (!LevelLoad(&level, name, message, sizeof(message)) || !TrackBuild(&track, &level))
+        {
+            fprintf(stderr, "The board of the scene has no level \"%s\"\n", name);
+            return;
+        }
+        float time = app->settings.story_last_time;
+        if (time <= 0.0f)
+        {
+            time = SettingsBestTime(&app->settings, name);
+        }
+        if (time <= 0.0f)
+        {
+            time = track.length / MAP_PIXELS_PER_METER / BOARD_DEFAULT_SPEED;
+        }
+        Standings standings;
+        StandingsMake(&standings, &level, track.length, time);
+        ScenePlayerSetBoard(&app->scene, &standings, level.display_name);
+        TrackUnload(&track);
+        return;
+    }
+}
+
 static void ContinueStory(App *app)
 {
     StopScene(app);
@@ -106,6 +145,7 @@ static void ContinueStory(App *app)
             app->scene_playing = ScenePlayerStart(&app->scene, step->name, app->message, sizeof(app->message));
             if (app->scene_playing)
             {
+                PrepareBoard(app);
                 app->in_story = true;
                 SetScreen(app, SCREEN_SCENE);
                 return;
@@ -158,6 +198,7 @@ static void OpenStartScreen(App *app, const char *name)
         app->scene_playing = ScenePlayerStart(&app->scene, name + 6, app->message, sizeof(app->message));
         if (app->scene_playing)
         {
+            PrepareBoard(app);
             SetScreen(app, SCREEN_SCENE);
         }
         return;
