@@ -11,7 +11,7 @@
 //   holy_shift [level name] [--debug_fly | --debug_selfdrive]
 //              [--shot <file>] [--skip <seconds>] [--yaw <degrees>] [--pitch <degrees>]
 //              [--screen <stages | settings | paused | crashed | finished>] [--frame <n>]
-//              [--difficulty <easy | medium | hard | ultra>]
+//              [--difficulty <easy | medium | hard | ultra>] [--time <day | overcast | dusk | night | rain>]
 // The level name is the name of a folder in levels/, the first saved level is the default
 // --debug_fly is a free camera (W A S D to move, the mouse to look)
 // --debug_selfdrive lets the car follow the road curve by itself
@@ -20,7 +20,7 @@
 // The other options are for development: --shot saves a picture and quits (at frame 3, or at the frame of --frame),
 // --screen opens a menu at the start,
 // --skip runs the self drive for some seconds first, --yaw and --pitch set the angles of the view at the start,
-// --difficulty is used in place of the difficulty of the settings
+// --difficulty is used in place of the difficulty of the settings, --time in place of the time of day of the level
 // A positive pitch is down
 typedef struct Options
 {
@@ -35,6 +35,7 @@ typedef struct Options
     bool has_pitch; // false when the command line has no --pitch
     Difficulty difficulty;
     bool has_difficulty; // false when the command line has no --difficulty
+    const char *time_of_day; // NULL for the time of day of the level
 } Options;
 
 // Read the command line, write the reason in message when it is not valid

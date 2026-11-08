@@ -23,10 +23,41 @@ static float Smoothstep(float from, float to, float value)
     return t * t * (3.0f - 2.0f * t);
 }
 
-// The red channel of the tint is the amount of fog for the shader
-static Color FogTint(float amount)
+// The red channel of the tint is the amount of fog for the shader, the green channel the light of the headlights
+static Color FogTint(float amount, float beam)
 {
-    return (Color){(unsigned char)(amount * 255.0f + 0.5f), 0, 0, 255};
+    return (Color){(unsigned char)(amount * 255.0f + 0.5f), (unsigned char)(beam * 255.0f + 0.5f), 0, 255};
+}
+
+// The light of one headlight at an offset from the headlight, the same as Headlight in mode7.fs
+static float Headlight(float dx, float dy, float angle)
+{
+    float along = dx * cosf(angle) + dy * sinf(angle);
+    if (along <= 0.0f)
+    {
+        return 0.0f;
+    }
+    float across = fabsf(-dx * sinf(angle) + dy * cosf(angle));
+    float cone = 1.0f - Smoothstep(0.0f, 1.0f, across / (along * tanf(HEADLIGHT_HALF_ANGLE_DEG * DEG2RAD)));
+    return cone * (1.0f - Smoothstep(HEADLIGHT_NEAR, HEADLIGHT_FAR, along));
+}
+
+// Return the light of the two headlights at a point, from 0 to 1, in the same bands as on the ground
+static float HeadlightBeam(Vector2 point, Mode7Camera camera, float strength)
+{
+    if (strength <= 0.0f)
+    {
+        return 0.0f;
+    }
+    float heading = camera.car_heading;
+    float toe = HEADLIGHT_TOE_DEG * DEG2RAD;
+    Vector2 right = {-sinf(heading), cosf(heading)};
+    Vector2 forward = {cosf(heading), sinf(heading)};
+    float dx = point.x - (camera.position.x + forward.x * HEADLIGHT_FORWARD + right.x * HEADLIGHT_RIGHT);
+    float dy = point.y - (camera.position.y + forward.y * HEADLIGHT_FORWARD + right.y * HEADLIGHT_RIGHT);
+    float light = fmaxf(Headlight(dx + right.x * HEADLIGHT_SPACING, dy + right.y * HEADLIGHT_SPACING, heading - toe),
+                        Headlight(dx - right.x * HEADLIGHT_SPACING, dy - right.y * HEADLIGHT_SPACING, heading + toe));
+    return floorf(light * strength * HEADLIGHT_BANDS + 0.5f) / HEADLIGHT_BANDS;
 }
 
 bool TreesInit(Trees *trees, const Level *level, char *message, size_t size)
@@ -36,13 +67,11 @@ bool TreesInit(Trees *trees, const Level *level, char *message, size_t size)
     {
         return false;
     }
-    ShaderSetColor(trees->shader, "fogColor", COLOR_FOG);
     if (!ShaderLoadFile(&trees->shadow_shader, SHADER_SHADOW_PATH, message, size))
     {
         TreesUnload(trees);
         return false;
     }
-    ShaderSetFloat(trees->shadow_shader, "darkness", TREE_SHADOW_ALPHA);
 
     char names[TREE_MAX_VARIANTS][TREE_VARIANT_NAME_MAX];
     int variant_count = LevelTreeVariants(level, names);
@@ -103,14 +132,14 @@ void TreesUnload(Trees *trees)
 
 // Add the trees of the cells in front of the camera to the list, return the count
 static int CollectTrees(Trees *trees, const Forest *forest, Vector2 position, Vector2 forward,
-                        Vector2 right, float pitch)
+                        Vector2 right, float pitch, float far)
 {
     // The cells that touch the box around the visible area
     float half_width = tanf(VIEW_HFOV_DEG * 0.5f * DEG2RAD);
-    Vector2 far_left = {position.x + (forward.x - right.x * half_width) * FOG_END,
-                        position.y + (forward.y - right.y * half_width) * FOG_END};
-    Vector2 far_right = {position.x + (forward.x + right.x * half_width) * FOG_END,
-                         position.y + (forward.y + right.y * half_width) * FOG_END};
+    Vector2 far_left = {position.x + (forward.x - right.x * half_width) * far,
+                        position.y + (forward.y - right.y * half_width) * far};
+    Vector2 far_right = {position.x + (forward.x + right.x * half_width) * far,
+                         position.y + (forward.y + right.y * half_width) * far};
     float min_x = fminf(position.x, fminf(far_left.x, far_right.x)) - TREE_VIEW_MARGIN;
     float max_x = fmaxf(position.x, fmaxf(far_left.x, far_right.x)) + TREE_VIEW_MARGIN;
     float min_y = fminf(position.y, fminf(far_left.y, far_right.y)) - TREE_VIEW_MARGIN;
@@ -139,7 +168,7 @@ static int CollectTrees(Trees *trees, const Forest *forest, Vector2 position, Ve
                               model->pixels_per_unit;
                 Vector2 base;
                 float front = Mode7Project(pitch, side, -CAMERA_HEIGHT, depth, &base);
-                if (depth < TREE_NEAR || depth > FOG_END || front <= 0.0f ||
+                if (depth < TREE_NEAR || depth > far || front <= 0.0f ||
                     fabsf(side) > front * half_width + crown)
                 {
                     continue;
@@ -160,7 +189,8 @@ static int CompareDepth(const void *a, const void *b)
 }
 
 // Draw dots on the ground under a tree, so that the flat bottom of the trunk does not float on the ground
-static void DrawShadow(const Trees *trees, const VisibleTree *visible, float focal, float pitch)
+static void DrawShadow(const Trees *trees, const VisibleTree *visible, float focal, float pitch,
+                       const Lighting *light)
 {
     const Tree *tree = visible->tree;
     const TreeSheet *model = &trees->variants[tree->variant].sheets[0];
@@ -175,7 +205,7 @@ static void DrawShadow(const Trees *trees, const VisibleTree *visible, float foc
     int y = (int)roundf(center.y);
     int radius_x = (int)ceilf(radius * focal / front);
     int radius_y = (int)ceilf(radius * CAMERA_HEIGHT * focal / (front * front));
-    float fog = Smoothstep(FOG_START, FOG_END, depth);
+    float fog = Smoothstep(light->fog_start, light->fog_end, depth);
     unsigned char alpha = (unsigned char)(255.0f * (1.0f - fog));
     if (radius_y < 1)
     {
@@ -187,9 +217,11 @@ static void DrawShadow(const Trees *trees, const VisibleTree *visible, float foc
     DrawTexturePro(trees->shadow, source, destination, (Vector2){0, 0}, 0.0f, (Color){255, 255, 255, alpha});
 }
 
-static void DrawTree(const Trees *trees, const VisibleTree *visible, Vector2 position, float focal,
-                     float pitch)
+static void DrawTree(const Trees *trees, const VisibleTree *visible, Mode7Camera camera, float focal,
+                     const Lighting *light)
 {
+    Vector2 position = camera.position;
+    float pitch = camera.pitch;
     const Tree *tree = visible->tree;
     float depth = visible->depth;
     Vector2 base;
@@ -229,31 +261,39 @@ static void DrawTree(const Trees *trees, const VisibleTree *visible, Vector2 pos
     Rectangle source = {(float)(column * sheet->cell_width), (float)(row * sheet->cell_height),
                         (float)sheet->cell_width, (float)sheet->cell_height};
 
-    float fog = Smoothstep(FOG_START, FOG_END, depth);
-    DrawTexturePro(sheet->texture, source, destination, (Vector2){0, 0}, 0.0f, FogTint(fog));
+    float fog = Smoothstep(light->fog_start, light->fog_end, depth);
+    float beam = HeadlightBeam(tree->position, camera, light->headlights);
+    DrawTexturePro(sheet->texture, source, destination, (Vector2){0, 0}, 0.0f, FogTint(fog, beam));
 }
 
-void TreesRender(Trees *trees, const Forest *forest, RenderTexture2D target, Mode7Camera camera)
+void TreesRender(Trees *trees, const Forest *forest, RenderTexture2D target, Mode7Camera camera,
+                 const Lighting *light)
 {
     float focal = Mode7Focal();
     Vector2 position = camera.position;
     Vector2 forward = {cosf(camera.heading), sinf(camera.heading)};
     Vector2 right = {-forward.y, forward.x};
 
-    int count = CollectTrees(trees, forest, position, forward, right, camera.pitch);
+    int count = CollectTrees(trees, forest, position, forward, right, camera.pitch, fminf(FOG_END, light->fog_end));
     qsort(trees->visible, (size_t)count, sizeof(VisibleTree), CompareDepth);
 
     BeginTextureMode(target);
-    BeginShaderMode(trees->shadow_shader);
-    for (int i = 0; i < count; i++)
+    if (light->shadow > 0.0f)
     {
-        DrawShadow(trees, &trees->visible[i], focal, camera.pitch);
+        ShaderSetFloat(trees->shadow_shader, "darkness", TREE_SHADOW_ALPHA * light->shadow);
+        BeginShaderMode(trees->shadow_shader);
+        for (int i = 0; i < count; i++)
+        {
+            DrawShadow(trees, &trees->visible[i], focal, camera.pitch, light);
+        }
+        EndShaderMode();
     }
-    EndShaderMode();
+    ShaderSetColor(trees->shader, "fogColor", light->fog);
+    SetShaderValue(trees->shader, GetShaderLocation(trees->shader, "tint"), &light->tint, SHADER_UNIFORM_VEC3);
     BeginShaderMode(trees->shader);
     for (int i = 0; i < count; i++)
     {
-        DrawTree(trees, &trees->visible[i], position, focal, camera.pitch);
+        DrawTree(trees, &trees->visible[i], camera, focal, light);
     }
     EndShaderMode();
     EndTextureMode();

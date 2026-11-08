@@ -42,11 +42,10 @@
 #define COLOR_ROAD_INK ((Color){166, 120, 78, 255})
 #define COLOR_RED_INK ((Color){176, 34, 30, 255})
 #define COLOR_CAR ((Color){30, 70, 170, 255})
-#define COLOR_CABIN_LIGHT ((Color){200, 196, 186, 255}) // the map is in the shade of the cabin
 
 bool PaceMapInit(PaceMap *map)
 {
-    *map = (PaceMap){0};
+    *map = (PaceMap){.light = LIGHTING[TIME_DAY].map};
     map->paper = LoadRenderTexture(PAPER_WIDTH, PAPER_HEIGHT);
     map->view = LoadRenderTexture(VIEW_WIDTH, VIEW_HEIGHT);
     if (!IsRenderTextureValid(map->paper) || !IsRenderTextureValid(map->view))
@@ -279,7 +278,7 @@ static void RenderView(PaceMap *map, float head_yaw, float head_pitch)
     // A render texture is upside down, so the top of the paper is at v = 1
     rlSetTexture(map->paper.texture.id);
     rlBegin(RL_QUADS);
-    rlColor4ub(COLOR_CABIN_LIGHT.r, COLOR_CABIN_LIGHT.g, COLOR_CABIN_LIGHT.b, 255);
+    rlColor4ub(map->light.r, map->light.g, map->light.b, 255);
     rlTexCoord2f(0.0f, 1.0f);
     rlVertex3f(top_left.x, top_left.y, top_left.z);
     rlTexCoord2f(0.0f, 0.0f);

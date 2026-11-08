@@ -13,10 +13,13 @@
 //   Open button             : load levels/<name>/level.json for editing
 //   Tree buttons            : choose the species of trees around the road
 //   Road slider             : drag to set the width of the road
-//   Theme button            : click to choose the look of the ground (forest, autumn, mud, lakeside)
+//   Ground button           : click to choose the look of the ground (forest, autumn, mud, lakeside)
+//   Time of day button      : click to choose the light of the stage (day, overcast, dusk, night, rain)
+//   All the buttons are in the panel at the right side of the window
 //
 // Run from the project root:
 //   make -C level-builder run
+// For development: --open <name> opens a level at the start, --shot <file> saves a picture of the window and quits
 #include <ctype.h>
 #include <math.h>
 #include <stdio.h>
@@ -25,6 +28,7 @@
 
 #include "core/difficulty.h"
 #include "level/ground_theme.h"
+#include "level/time_of_day.h"
 #include "level/tree_species.h"
 #include "raylib.h"
 #include "raymath.h"
@@ -40,7 +44,17 @@
 #define MAX_UNDO 256
 #define CURVE_STEP 2.0f // maximum distance between curve samples
 
-#define TOOLBAR_H 40
+#define PANEL_W 280      // the panel with the settings of the level, at the right side of the window
+#define PANEL_PAD 16
+#define ROW_H 30         // height of a button or a text box in the panel
+#define LABEL_GAP 20     // a label is this far over its button
+#define SECTION_GAP 18   // space between two groups of settings
+#define FONT_LABEL 16
+#define FONT_FIELD 18
+#define COLOR_PANEL ((Color){30, 30, 30, 255})
+#define COLOR_BUTTON ((Color){60, 60, 60, 255})
+#define COLOR_BUTTON_HOVER ((Color){90, 90, 90, 255})
+#define COLOR_LABEL ((Color){150, 150, 150, 255})
 #define SCROLL_SPEED 48.0f // screen pixels for each wheel unit
 #define ZOOM_MIN 0.25f
 #define ZOOM_MAX 4.0f
@@ -74,6 +88,7 @@ typedef struct
     bool jelka_just_ahead;
     bool trees[TREE_SPECIES_COUNT]; // the species of trees around the road
     GroundTheme theme;              // the look of the ground in the game
+    TimeOfDay time_of_day;          // the light of the stage in the game
     int road_width; // map pixels
 } Level;
 
@@ -244,6 +259,7 @@ static bool ExportLevel(const Level *level, const char *name, char *message,
         fprintf(file, "  \"jelka_just_ahead\": true,\n");
     }
     fprintf(file, "  \"theme\": \"%s\",\n", GROUND_THEME_NAMES[level->theme]);
+    fprintf(file, "  \"time_of_day\": \"%s\",\n", LIGHTING[level->time_of_day].name);
     for (int d = 0; d < DIFFICULTY_COUNT; d++)
     {
         if (level->time_count[d] == 0)
@@ -395,6 +411,13 @@ static bool LoadLevel(const char *name, Level *level, char *message,
         sscanf(SkipTo(theme, "") + 1, "%31[^\"]", theme_name);
         loaded.theme = GroundThemeFind(theme_name);
     }
+    const char *time = FindKey(text, "time_of_day");
+    if (time != NULL && *SkipTo(time, "") == '"')
+    {
+        char time_name[32] = "";
+        sscanf(SkipTo(time, "") + 1, "%31[^\"]", time_name);
+        loaded.time_of_day = TimeOfDayFind(time_name);
+    }
     const char *display = FindKey(text, "display_name");
     if (display != NULL && *SkipTo(display, "") == '"')
     {
@@ -527,8 +550,44 @@ static void RemovePoint(Level *level, int index)
         level->closed = false;
 }
 
-int main(void)
+static void DrawPanelButton(Rectangle rect, const char *label, bool hover, bool on)
 {
+    Color fill = on ? (Color){40, 120, 60, 255} : COLOR_BUTTON;
+    if (hover)
+        fill = on ? (Color){60, 150, 80, 255} : COLOR_BUTTON_HOVER;
+    DrawRectangleRec(rect, fill);
+    if (on)
+        DrawRectangleLinesEx(rect, 1.0f, (Color){140, 220, 150, 255});
+    int width = MeasureText(label, FONT_FIELD);
+    DrawText(label, (int)(rect.x + (rect.width - (float)width) / 2.0f), (int)(rect.y + (rect.height - FONT_FIELD) / 2.0f),
+             FONT_FIELD, WHITE);
+}
+
+// A text box, the hint shows in grey when the text is empty, a blinking cursor shows when it has the focus
+static void DrawTextBox(Rectangle rect, const char *text, const char *hint, bool focus)
+{
+    DrawRectangleRec(rect, (Color){15, 15, 15, 255});
+    DrawRectangleLinesEx(rect, 1.0f, focus ? YELLOW : GRAY);
+    int text_y = (int)(rect.y + (rect.height - FONT_FIELD) / 2.0f);
+    if (text[0] == '\0' && !focus)
+        DrawText(hint, (int)rect.x + 8, text_y, FONT_FIELD, DARKGRAY);
+    else
+        DrawText(text, (int)rect.x + 8, text_y, FONT_FIELD, WHITE);
+    if (focus && fmodf((float)GetTime(), 1.0f) < 0.5f)
+        DrawRectangle((int)rect.x + 8 + MeasureText(text, FONT_FIELD) + 1, text_y - 1, 2, FONT_FIELD + 2, WHITE);
+}
+
+int main(int argc, char **argv)
+{
+    const char *open_name = NULL;
+    const char *shot = NULL;
+    for (int i = 1; i + 1 < argc; i++)
+    {
+        if (strcmp(argv[i], "--open") == 0)
+            open_name = argv[++i];
+        else if (strcmp(argv[i], "--shot") == 0)
+            shot = argv[++i];
+    }
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(1280, 720, "Level editor");
     SetTargetFPS(60);
@@ -542,19 +601,16 @@ int main(void)
     Texture2D texture = LoadTextureFromImage(logic);
     SetTextureFilter(texture, TEXTURE_FILTER_POINT);
 
-    Rectangle export_button = {10, 6, 100, TOOLBAR_H - 12};
-    Rectangle open_button = {120, 6, 80, TOOLBAR_H - 12};
-    Rectangle name_box = {210, 6, 150, TOOLBAR_H - 12};
+    Rectangle export_button;
+    Rectangle open_button;
+    Rectangle name_box;
     Rectangle tree_buttons[TREE_SPECIES_COUNT];
-    for (int i = 0; i < TREE_SPECIES_COUNT; i++)
-    {
-        tree_buttons[i] = (Rectangle){370.0f + (float)i * 76.0f, 6, 72, TOOLBAR_H - 12};
-    }
-    float road_x = 370.0f + TREE_SPECIES_COUNT * 76.0f + 8.0f;
-    Rectangle road_slider = {road_x + 115.0f, 6, 120, TOOLBAR_H - 12}; // the area that takes clicks
-    Rectangle display_box = {road_slider.x + road_slider.width + 10.0f, 6, 140, TOOLBAR_H - 12};
-    Rectangle tutorial_box = {display_box.x + display_box.width + 10.0f, 6, 90, TOOLBAR_H - 12};
-    Rectangle theme_button = {tutorial_box.x + tutorial_box.width + 10.0f, 6, 95, TOOLBAR_H - 12};
+    Rectangle road_slider; // the area that takes clicks
+    Rectangle display_box;
+    Rectangle tutorial_box;
+    Rectangle theme_button;
+    Rectangle time_button;
+    float label_y[6];      // the labels over the groups: folder, display name, road, ground, time of day, trees
     bool display_focus = false;
     bool road_drag = false;
     char name[MAX_NAME + 1] = "level1";
@@ -565,11 +621,60 @@ int main(void)
     float scroll_lock = 0.0f; // block scroll while this time is above zero
     char message[256] = "";
     float message_time = 0.0f;
+    int frames = 0;
+    if (open_name != NULL)
+    {
+        snprintf(name, sizeof(name), "%s", open_name);
+        name_length = (int)strlen(name);
+        bool opened = LoadLevel(name, &level, message, sizeof(message));
+        message_time = MESSAGE_SECONDS;
+        if (opened)
+        {
+            free(curve);
+            curve = BuildCurve(&level, &curve_count);
+            RenderLogicMap(&logic, curve, curve_count, level.road_width);
+            UpdateTexture(texture, logic.data);
+            zoom = 0.33f;
+        }
+    }
 
     while (!WindowShouldClose())
     {
         int win_w = GetScreenWidth();
         int win_h = GetScreenHeight();
+
+        // The panel: each group has a label and the buttons under it, from the top down
+        float panel_x = (float)(win_w - PANEL_W);
+        float x = panel_x + PANEL_PAD;
+        float w = PANEL_W - 2.0f * PANEL_PAD;
+        float half = (w - 8.0f) / 2.0f;
+        float y = 56.0f;
+        label_y[0] = y;
+        name_box = (Rectangle){x, y + LABEL_GAP, w, ROW_H};
+        y = name_box.y + ROW_H + 8.0f;
+        open_button = (Rectangle){x, y, half, ROW_H};
+        export_button = (Rectangle){x + half + 8.0f, y, half, ROW_H};
+        y += ROW_H + SECTION_GAP;
+        label_y[1] = y;
+        display_box = (Rectangle){x, y + LABEL_GAP, w, ROW_H};
+        y = display_box.y + ROW_H + 8.0f;
+        tutorial_box = (Rectangle){x, y, w, ROW_H};
+        y += ROW_H + SECTION_GAP;
+        label_y[2] = y;
+        road_slider = (Rectangle){x, y + LABEL_GAP, w, ROW_H};
+        y = road_slider.y + ROW_H + SECTION_GAP;
+        label_y[3] = y;
+        theme_button = (Rectangle){x, y + LABEL_GAP, w, ROW_H};
+        y = theme_button.y + ROW_H + SECTION_GAP;
+        label_y[4] = y;
+        time_button = (Rectangle){x, y + LABEL_GAP, w, ROW_H};
+        y = time_button.y + ROW_H + SECTION_GAP;
+        label_y[5] = y;
+        for (int i = 0; i < TREE_SPECIES_COUNT; i++)
+        {
+            tree_buttons[i] = (Rectangle){x + (float)(i % 2) * (half + 8.0f), y + LABEL_GAP + (float)(i / 2) * (ROW_H + 6.0f),
+                                          half, ROW_H};
+        }
 
         Vector2 mouse = GetMousePosition();
         bool command = IsKeyDown(KEY_LEFT_SUPER) || IsKeyDown(KEY_RIGHT_SUPER) ||
@@ -637,7 +742,7 @@ int main(void)
 
         Vector2 world = Vector2Add(Vector2Scale(mouse, 1.0f / zoom), camera);
         float pick_radius = PICK_RADIUS / zoom;
-        bool over_toolbar = mouse.y < TOOLBAR_H;
+        bool over_panel = mouse.x >= (float)(win_w - PANEL_W);
         bool in_map = world.x >= 0.0f && world.x < MAP_W && world.y >= 0.0f &&
                       world.y < MAP_H;
 
@@ -727,6 +832,11 @@ int main(void)
                 PushUndo(&level);
                 level.theme = (GroundTheme)((level.theme + 1) % GROUND_THEME_COUNT);
             }
+            else if (CheckCollisionPointRec(mouse, time_button))
+            {
+                PushUndo(&level);
+                level.time_of_day = (TimeOfDay)((level.time_of_day + 1) % TIME_OF_DAY_COUNT);
+            }
             else if (CheckCollisionPointRec(mouse, export_button))
             {
                 ExportLevel(&level, name, message, sizeof(message));
@@ -744,13 +854,13 @@ int main(void)
                     if (level.count > 0)
                     {
                         camera = Vector2Subtract(
-                            level.points[0], (Vector2){win_w / 2.0f / zoom,
+                            level.points[0], (Vector2){(win_w - PANEL_W) / 2.0f / zoom,
                                                        win_h / 2.0f / zoom});
                     }
                 }
                 message_time = MESSAGE_SECONDS;
             }
-            else if (!over_toolbar && in_map)
+            else if (!over_panel && in_map)
             {
                 int hit = FindPoint(&level, world, pick_radius);
                 if (level.closed)
@@ -791,7 +901,7 @@ int main(void)
         {
             road_drag = false;
         }
-        if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) && !over_toolbar)
+        if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) && !over_panel)
         {
             int index = FindPoint(&level, world, pick_radius);
             if (index >= 0)
@@ -812,7 +922,7 @@ int main(void)
         if (message_time > 0.0f)
             message_time -= GetFrameTime();
 
-        int hover = over_toolbar ? -1 : FindPoint(&level, world, pick_radius);
+        int hover = over_panel ? -1 : FindPoint(&level, world, pick_radius);
 
         BeginDrawing();
         ClearBackground(DARKGRAY);
@@ -839,85 +949,61 @@ int main(void)
                      (int)screen.y - 18, 14, WHITE);
         }
 
-        DrawRectangle(0, 0, win_w, TOOLBAR_H, (Color){30, 30, 30, 255});
-        bool over_button = CheckCollisionPointRec(mouse, export_button);
-        DrawRectangleRec(export_button,
-                         over_button ? (Color){90, 90, 90, 255}
-                                     : (Color){60, 60, 60, 255});
-        DrawText("Export", (int)export_button.x + 20, (int)export_button.y + 6,
-                 18, WHITE);
-        bool over_open = CheckCollisionPointRec(mouse, open_button);
-        DrawRectangleRec(open_button, over_open ? (Color){90, 90, 90, 255}
-                                                : (Color){60, 60, 60, 255});
-        DrawText("Open", (int)open_button.x + 20, (int)open_button.y + 6, 18,
-                 WHITE);
-        DrawRectangleRec(name_box, (Color){15, 15, 15, 255});
-        DrawRectangleLinesEx(name_box, 1.0f, name_focus ? YELLOW : GRAY);
-        DrawText(name, (int)name_box.x + 8, (int)name_box.y + 6, 18, WHITE);
-        if (name_focus && fmodf((float)GetTime(), 1.0f) < 0.5f)
+        DrawRectangle((int)panel_x, 0, PANEL_W, win_h, COLOR_PANEL);
+        DrawRectangle((int)panel_x, 0, 1, win_h, (Color){70, 70, 70, 255});
+        DrawText("Level", (int)x, 18, 24, WHITE);
+        const char *labels[6] = {"Folder name", "Display name", "", "Ground", "Time of day", "Trees"};
+        for (int i = 0; i < 6; i++)
         {
-            int cursor_x = (int)name_box.x + 8 + MeasureText(name, 18) + 1;
-            DrawRectangle(cursor_x, (int)name_box.y + 5, 2, 20, WHITE);
+            DrawText(labels[i], (int)x, (int)label_y[i], FONT_LABEL, COLOR_LABEL);
         }
-        DrawRectangleRec(display_box, (Color){15, 15, 15, 255});
-        DrawRectangleLinesEx(display_box, 1.0f, display_focus ? YELLOW : GRAY);
-        if (level.display_name[0] == '\0' && !display_focus)
-        {
-            DrawText("Display name", (int)display_box.x + 8, (int)display_box.y + 6, 18, DARKGRAY);
-        }
-        else
-        {
-            DrawText(level.display_name, (int)display_box.x + 8, (int)display_box.y + 6, 18, WHITE);
-        }
-        if (display_focus && fmodf((float)GetTime(), 1.0f) < 0.5f)
-        {
-            int cursor_x = (int)display_box.x + 8 + MeasureText(level.display_name, 18) + 1;
-            DrawRectangle(cursor_x, (int)display_box.y + 5, 2, 20, WHITE);
-        }
+        DrawText(TextFormat("Road width   %.1f m", (float)level.road_width / MAP_PIXELS_PER_METER), (int)x,
+                 (int)label_y[2], FONT_LABEL, COLOR_LABEL);
+
+        DrawTextBox(name_box, name, "", name_focus);
+        DrawPanelButton(open_button, "Open", CheckCollisionPointRec(mouse, open_button), false);
+        DrawPanelButton(export_button, "Export", CheckCollisionPointRec(mouse, export_button), false);
+        DrawTextBox(display_box, level.display_name, "Same as the folder", display_focus);
+
         bool over_tutorial = CheckCollisionPointRec(mouse, tutorial_box);
-        DrawRectangleRec(tutorial_box, over_tutorial ? (Color){90, 90, 90, 255} : (Color){60, 60, 60, 255});
-        Rectangle check = {tutorial_box.x + 8, tutorial_box.y + 7, 14, 14};
+        DrawRectangleRec(tutorial_box, over_tutorial ? COLOR_BUTTON_HOVER : COLOR_BUTTON);
+        Rectangle check = {tutorial_box.x + 8, tutorial_box.y + 8, 14, 14};
         DrawRectangleLinesEx(check, 2.0f, WHITE);
         if (level.tutorial)
         {
             DrawRectangle((int)check.x + 4, (int)check.y + 4, 6, 6, YELLOW);
         }
-        DrawText("Tutorial", (int)check.x + 20, (int)tutorial_box.y + 6, 18, WHITE);
-        bool over_theme = CheckCollisionPointRec(mouse, theme_button);
-        DrawRectangleRec(theme_button, over_theme ? (Color){90, 90, 90, 255} : (Color){60, 60, 60, 255});
-        const char *theme_label = GROUND_THEME_NAMES[level.theme];
-        DrawText(theme_label, (int)(theme_button.x + (theme_button.width - (float)MeasureText(theme_label, 18)) / 2.0f),
-                 (int)theme_button.y + 6, 18, WHITE);
-        for (int i = 0; i < TREE_SPECIES_COUNT; i++)
-        {
-            bool over_tree = CheckCollisionPointRec(mouse, tree_buttons[i]);
-            Color fill = level.trees[i] ? (Color){40, 120, 60, 255} : (Color){60, 60, 60, 255};
-            if (over_tree)
-            {
-                fill = level.trees[i] ? (Color){60, 150, 80, 255} : (Color){90, 90, 90, 255};
-            }
-            DrawRectangleRec(tree_buttons[i], fill);
-            if (level.trees[i])
-                DrawRectangleLinesEx(tree_buttons[i], 1.0f, (Color){140, 220, 150, 255});
-            char label[TREE_VARIANT_NAME_MAX];
-            snprintf(label, sizeof(label), "%s", TREE_SPECIES_NAMES[i]);
-            label[0] = (char)toupper((unsigned char)label[0]);
-            int label_w = MeasureText(label, 16);
-            DrawText(label, (int)(tree_buttons[i].x + (tree_buttons[i].width - (float)label_w) / 2.0f),
-                     (int)tree_buttons[i].y + 7, 16, WHITE);
-        }
-        DrawText(TextFormat("Road %.1f m", (float)level.road_width / MAP_PIXELS_PER_METER),
-                 (int)road_x, 11, 18, WHITE);
+        DrawText("Tutorial (hints in the game)", (int)check.x + 22, (int)tutorial_box.y + 7, FONT_LABEL, WHITE);
+
         float knob_t = (float)(level.road_width - ROAD_WIDTH_MIN) / (ROAD_WIDTH_MAX - ROAD_WIDTH_MIN);
         float track_y = road_slider.y + road_slider.height / 2.0f;
         bool over_road = road_drag || CheckCollisionPointRec(mouse, road_slider);
-        DrawRectangle((int)road_slider.x, (int)track_y - 2, (int)road_slider.width, 4,
-                      (Color){90, 90, 90, 255});
-        DrawCircleV((Vector2){road_slider.x + knob_t * road_slider.width, track_y}, 7.0f,
+        DrawRectangle((int)road_slider.x, (int)track_y - 2, (int)road_slider.width, 4, (Color){90, 90, 90, 255});
+        DrawCircleV((Vector2){road_slider.x + knob_t * road_slider.width, track_y}, 8.0f,
                     over_road ? YELLOW : LIGHTGRAY);
-        const char *status = TextFormat("Points: %d%s   Zoom: %d%%", level.count,
+
+        DrawPanelButton(theme_button, TextFormat("%s   >", GROUND_THEME_NAMES[level.theme]),
+                        CheckCollisionPointRec(mouse, theme_button), false);
+        DrawPanelButton(time_button, TextFormat("%s   >", LIGHTING[level.time_of_day].name),
+                        CheckCollisionPointRec(mouse, time_button), false);
+        for (int i = 0; i < TREE_SPECIES_COUNT; i++)
+        {
+            char label[TREE_VARIANT_NAME_MAX];
+            snprintf(label, sizeof(label), "%s", TREE_SPECIES_NAMES[i]);
+            label[0] = (char)toupper((unsigned char)label[0]);
+            DrawPanelButton(tree_buttons[i], label, CheckCollisionPointRec(mouse, tree_buttons[i]), level.trees[i]);
+        }
+
+        // Help at the bottom of the panel
+        const char *help[] = {"Click: add a point", "Click point 1: close the road", "Right click: delete a point",
+                              "Cmd+Z: undo", "Scroll: move,  Cmd+scroll: zoom"};
+        for (int i = 0; i < 5; i++)
+        {
+            DrawText(help[i], (int)x, win_h - 150 + i * 20, FONT_LABEL, COLOR_LABEL);
+        }
+        const char *status = TextFormat("%d points%s,  zoom %d%%", level.count,
                                         level.closed ? " (closed)" : "", (int)roundf(zoom * 100.0f));
-        DrawText(status, win_w - MeasureText(status, 18) - 10, win_h - 26, 18, LIGHTGRAY);
+        DrawText(status, (int)x, win_h - 40, 18, LIGHTGRAY);
         if (message_time > 0.0f)
         {
             int message_w = MeasureText(message, 18);
@@ -926,6 +1012,13 @@ int main(void)
             DrawText(message, 10, win_h - 26, 18, YELLOW);
         }
         EndDrawing();
+        if (shot != NULL && ++frames == 5)
+        {
+            Image picture = LoadImageFromScreen();
+            ExportImage(picture, shot);
+            UnloadImage(picture);
+            break;
+        }
     }
 
     free(curve);

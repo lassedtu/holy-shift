@@ -41,7 +41,8 @@ void CockpitPitchLimits(const Cockpit *cockpit, float *pitch_min, float *pitch_m
 
 // Draw the cabin over an area of the window
 // The head yaw and the head pitch are in degrees, the steer is from -1 (full left) to 1 (full right)
+// The tint is the light in the cabin, from the time of day
 void CockpitDraw(const Cockpit *cockpit, Rectangle destination, float head_yaw, float head_pitch,
-                 float steer);
+                 float steer, Vector3 tint);
 
 #endif

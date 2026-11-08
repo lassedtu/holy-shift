@@ -52,6 +52,11 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
     }
     game->difficulty = options->difficulty;
     LevelApplyDifficulty(&game->level, game->difficulty);
+    if (options->time_of_day != NULL)
+    {
+        game->level.time_of_day = TimeOfDayFind(options->time_of_day);
+    }
+    game->light = &LIGHTING[game->level.time_of_day];
     if (!TrackBuild(&game->track, &game->level))
     {
         snprintf(message, size, "Could not build the track for \"%s\"", name);
@@ -122,6 +127,7 @@ bool GameInit(Game *game, const Options *options, char *message, size_t size)
         game->head.pitch = Clamp(options->pitch_deg, game->head.pitch_min, game->head.pitch_max);
     }
     PaceMapReset(&game->map, &game->track, &game->car);
+    RainInit(&game->rain, (Mode7Camera){game->car.position, game->car.heading, game->head.pitch, game->car.heading});
     HintsInit(&game->hints, game->level.tutorial && game->mode == GAME_MODE_NORMAL);
     CarAudioInit(&game->audio, &game->car);
     CarAudioSetPlaying(&game->audio, game->mode != GAME_MODE_DEBUG_FLY);
@@ -254,14 +260,22 @@ void GameRender(Game *game)
     bool fly = game->mode == GAME_MODE_DEBUG_FLY;
 
     // The road view turns with the head, in the same way as the cabin
-    Mode7Camera camera = {game->fly.position, game->fly.heading, VIEW_PITCH_DEG};
+    Mode7Camera camera = {game->fly.position, game->fly.heading, VIEW_PITCH_DEG, game->fly.heading};
     if (!fly)
     {
         camera = (Mode7Camera){game->car.position, game->car.heading + game->head.yaw * DEG2RAD,
-                               game->head.pitch};
+                               game->head.pitch, game->car.heading};
     }
-    Mode7Render(&game->mode7, game->textures.visual, camera);
-    TreesRender(&game->trees, &game->forest, game->mode7.target, camera);
+    Mode7Render(&game->mode7, game->textures.visual, camera, game->light);
+    TreesRender(&game->trees, &game->forest, game->mode7.target, camera, game->light);
+    // The rain also falls behind the menus, so it moves with the frame time and not with the game
+    if (game->light->rain)
+    {
+        Vector2 velocity = {cosf(game->car.heading) * game->car.speed, sinf(game->car.heading) * game->car.speed};
+        RainUpdate(&game->rain, GetFrameTime(), camera, velocity);
+        RainDraw(&game->rain, game->mode7.target, camera, velocity, game->light->fog, game->light->fog_end);
+    }
+    game->map.light = game->light->map;
     if (!fly)
     {
         PaceMapRender(&game->map, &game->track, &game->notes, &game->car, game->head.yaw,
@@ -276,7 +290,7 @@ void GameDrawView(const Game *game, Rectangle destination)
     if (!fly)
     {
         CockpitDraw(&game->cockpit, destination, game->head.yaw, game->head.pitch,
-                    game->car.steer);
+                    game->car.steer, game->light->cabin);
         PaceMapDraw(&game->map, destination);
         if (game->show_hud)
         {

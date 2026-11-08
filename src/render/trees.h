@@ -42,8 +42,9 @@ typedef struct Trees
 bool TreesInit(Trees *trees, const Level *level, char *message, size_t size);
 void TreesUnload(Trees *trees);
 
-// Draw the trees on top of the road view
-// The target is the view of Mode7Render, the camera is the same as for that call
-void TreesRender(Trees *trees, const Forest *forest, RenderTexture2D target, Mode7Camera camera);
+// Draw the trees on top of the road view, in the light of the time of day
+// The target is the view of Mode7Render, the camera and the light are the same as for that call
+void TreesRender(Trees *trees, const Forest *forest, RenderTexture2D target, Mode7Camera camera,
+                 const Lighting *light);
 
 #endif

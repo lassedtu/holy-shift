@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "level/time_of_day.h"
 #include "raylib.h"
 
 // The view of the road: the ground of the level seen from the camera, with a sky that is the color of the fog at the horizon
@@ -20,6 +21,7 @@ typedef struct Mode7Camera
     Vector2 position; // map pixels
     float heading;    // radians, 0 is towards +x and a positive angle turns right
     float pitch;      // degrees, a positive angle is down
+    float car_heading; // radians, the direction of the headlights
 } Mode7Camera;
 
 // Focal length in pixels
@@ -36,8 +38,8 @@ float Mode7Project(float pitch, float side, float height, float depth, Vector2 *
 bool Mode7Init(Mode7 *mode7, char *message, size_t size);
 void Mode7Unload(Mode7 *mode7);
 
-// Draw the ground texture as seen from the camera
-void Mode7Render(Mode7 *mode7, Texture2D ground, Mode7Camera camera);
+// Draw the ground texture as seen from the camera, in the light of the time of day
+void Mode7Render(Mode7 *mode7, Texture2D ground, Mode7Camera camera, const Lighting *light);
 
 // Draw the last rendered view in an area of the window
 void Mode7Draw(const Mode7 *mode7, Rectangle destination);

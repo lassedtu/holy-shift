@@ -23,6 +23,7 @@
 #include "level/track.h"
 #include "render/cockpit.h"
 #include "render/mode7.h"
+#include "render/rain.h"
 #include "render/pace_map.h"
 #include "render/trees.h"
 
@@ -35,6 +36,7 @@ typedef struct Game
 {
     GameMode mode;
     Difficulty difficulty;
+    const Lighting *light; // the time of day of the stage
     Level level;
     Track track;
     Forest forest;
@@ -61,6 +63,7 @@ typedef struct Game
 
     Mode7 mode7;
     Trees trees;
+    Rain rain;
     Cockpit cockpit;
     PaceMap map;
     Hints hints; // the hints of a tutorial level

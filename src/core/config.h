@@ -44,11 +44,16 @@
 
 // Road view (Mode 7)
 #define CAMERA_HEIGHT 11.0f // map pixels above the road
-#define FOG_START 80.0f     // distance where the ground and the trees start to fade into the fog
-#define FOG_END 500.0f      // everything is the color of the fog here, and no tree is drawn further away
+#define HEADLIGHT_NEAR 80.0f           // map pixels, the headlights are full until here
+#define HEADLIGHT_FAR 480.0f           // and fade out until here
+#define HEADLIGHT_HALF_ANGLE_DEG 22.0f // the light cone of one headlight, from its middle to its side
+#define HEADLIGHT_TOE_DEG 11.0f        // each headlight points this far out to its side
+#define HEADLIGHT_SPACING 5.0f         // map pixels from the middle of the car to each headlight
+#define HEADLIGHT_FORWARD (CAR_EYE_BACK + CAR_LENGTH / 2.0f) // the headlights are this far in front of the eye
+#define HEADLIGHT_RIGHT CAR_EYE_LEFT   // the middle of the car is this far right of the eye
+#define HEADLIGHT_BANDS 4.0f           // the light has this many steps, so it keeps the pixel look
+#define FOG_END 500.0f      // no tree is drawn further away, the fog of the time of day (level/time_of_day.h) ends here or nearer
 #define HAZE_FADE 45.0f     // rows over which the fog at the horizon changes into the sky
-#define COLOR_SKY ((Color){90, 160, 230, 255})
-#define COLOR_FOG ((Color){75, 120, 135, 255})    // the color of the far ground, the far trees and the horizon
 #define COLOR_OUTSIDE ((Color){40, 150, 50, 255}) // color outside of the map
 #define COLOR_ROAD ((Color){130, 90, 50, 255})    // color of the road in the logic map when the level file has no color
 

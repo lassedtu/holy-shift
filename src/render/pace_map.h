@@ -19,6 +19,7 @@ typedef struct PaceMap
     float heading;         // direction of the top of the map, in radians
     float time;
     bool visible; // false when the head looks away from the map, then nothing is rendered
+    Color light;  // the light on the paper, from the time of day
 } PaceMap;
 
 bool PaceMapInit(PaceMap *map);

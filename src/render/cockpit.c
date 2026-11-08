@@ -143,7 +143,7 @@ void CockpitPitchLimits(const Cockpit *cockpit, float *pitch_min, float *pitch_m
 }
 
 void CockpitDraw(const Cockpit *cockpit, Rectangle destination, float head_yaw, float head_pitch,
-                 float steer)
+                 float steer, Vector3 tint)
 {
     const CockpitMetrics *metrics = &cockpit->metrics;
     Shader shader = cockpit->shader;
@@ -159,6 +159,7 @@ void CockpitDraw(const Cockpit *cockpit, Rectangle destination, float head_yaw, 
     ShaderSetFloat(shader, "headYaw", head_yaw);
     ShaderSetFloat(shader, "pitchDown", head_pitch);
     ShaderSetFloat(shader, "wheelFrame", (float)frame);
+    SetShaderValue(shader, GetShaderLocation(shader, "tint"), &tint, SHADER_UNIFORM_VEC3);
 
     BeginShaderMode(shader);
     ShaderSetTexture(shader, "panorama", cockpit->panorama);

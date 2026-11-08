@@ -17,6 +17,7 @@ uniform float latTop;    // elevation at the top of the panorama
 uniform vec4 wheelRect;  // x, y, width and height of a wheel frame in panorama pixels
 uniform float wheelFrame;
 uniform vec2 wheelAtlasSize;
+uniform vec3 tint; // the light in the cabin
 
 out vec4 finalColor;
 
@@ -55,5 +56,5 @@ void main()
     {
         rgb = (wheel.rgb * wheel.a + base.rgb * base.a * (1.0 - wheel.a)) / a;
     }
-    finalColor = vec4(rgb, a);
+    finalColor = vec4(rgb * tint, a);
 }

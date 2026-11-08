@@ -6,6 +6,7 @@
 
 #include "core/difficulty.h"
 #include "level/ground_theme.h"
+#include "level/time_of_day.h"
 #include "level/tree_species.h"
 #include "raylib.h"
 
@@ -35,6 +36,7 @@ typedef struct Level
     Color outside_color;            // color of the ground next to the road in the logic map
     bool trees[TREE_SPECIES_COUNT]; // the species of trees around the road
     GroundTheme ground_theme;       // the look of the ground, GROUND_FOREST when the file has no theme
+    TimeOfDay time_of_day;          // the light of the stage, TIME_DAY when the file has no time of day
 } Level;
 
 // Load a level by its folder name, write the reason in message when it fails

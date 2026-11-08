@@ -19,6 +19,7 @@
   "display_name": "Village Road",
   "closed": true,
   "tutorial": true,
+  "time_of_day": "day",
   "trees": [
     "spruce"
   ],

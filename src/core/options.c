@@ -46,6 +46,10 @@ bool OptionsParse(Options *options, int argc, char **argv, char *message, size_t
             options->pitch_deg = (float)atof(argv[++i]);
             options->has_pitch = true;
         }
+        else if (has_value && strcmp(argv[i], "--time") == 0)
+        {
+            options->time_of_day = argv[++i];
+        }
         else if (has_value && strcmp(argv[i], "--difficulty") == 0)
         {
             const char *name = argv[++i];

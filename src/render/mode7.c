@@ -49,14 +49,13 @@ bool Mode7Init(Mode7 *mode7, char *message, size_t size)
     ShaderSetVec2(shader, "resolution", VIEW_WIDTH, VIEW_HEIGHT);
     ShaderSetFloat(shader, "camHeight", CAMERA_HEIGHT);
     ShaderSetFloat(shader, "focal", focal);
-    ShaderSetColor(shader, "skyColor", COLOR_SKY);
-    ShaderSetColor(shader, "fogColor", COLOR_FOG);
-    // The tops of the tallest trees at the end of the fog are this many rows over the horizon
-    float tallest = TREE_HAZE_UNITS * TREE_MAP_PIXELS_PER_UNIT * TREE_SCALE_MAX - CAMERA_HEIGHT;
-    ShaderSetFloat(shader, "hazeHeight", tallest * focal / FOG_END);
     ShaderSetFloat(shader, "hazeFade", HAZE_FADE);
     ShaderSetColor(shader, "outsideColor", COLOR_OUTSIDE);
-    ShaderSetVec2(shader, "fog", FOG_START, FOG_END);
+    ShaderSetVec2(shader, "headlightReach", HEADLIGHT_NEAR, HEADLIGHT_FAR);
+    ShaderSetFloat(shader, "headlightSpread", tanf(HEADLIGHT_HALF_ANGLE_DEG * DEG2RAD));
+    ShaderSetVec2(shader, "headlightToe", cosf(HEADLIGHT_TOE_DEG * DEG2RAD), sinf(HEADLIGHT_TOE_DEG * DEG2RAD));
+    ShaderSetFloat(shader, "headlightSpacing", HEADLIGHT_SPACING);
+    ShaderSetVec2(shader, "headlightCenter", HEADLIGHT_FORWARD, HEADLIGHT_RIGHT);
     return true;
 }
 
@@ -73,16 +72,25 @@ void Mode7Unload(Mode7 *mode7)
     *mode7 = (Mode7){0};
 }
 
-void Mode7Render(Mode7 *mode7, Texture2D ground, Mode7Camera camera)
+void Mode7Render(Mode7 *mode7, Texture2D ground, Mode7Camera camera, const Lighting *light)
 {
     Shader shader = mode7->shader;
+    ShaderSetColor(shader, "skyColor", light->sky);
+    ShaderSetColor(shader, "fogColor", light->fog);
+    ShaderSetVec2(shader, "fog", light->fog_start, light->fog_end);
+    // The tops of the tallest trees at the end of the fog are this many rows over the horizon
+    float tallest = TREE_HAZE_UNITS * TREE_MAP_PIXELS_PER_UNIT * TREE_SCALE_MAX - CAMERA_HEIGHT;
+    ShaderSetFloat(shader, "hazeHeight", tallest * Mode7Focal() / light->fog_end);
+    SetShaderValue(shader, GetShaderLocation(shader, "tint"), &light->tint, SHADER_UNIFORM_VEC3);
+    ShaderSetFloat(shader, "headlights", light->headlights);
+    ShaderSetVec2(shader, "carDir", cosf(camera.car_heading), sinf(camera.car_heading));
     ShaderSetVec2(shader, "mapSize", (float)ground.width, (float)ground.height);
     ShaderSetVec2(shader, "camPos", camera.position.x, camera.position.y);
     ShaderSetVec2(shader, "camDir", cosf(camera.heading), sinf(camera.heading));
     ShaderSetFloat(shader, "pitch", camera.pitch * DEG2RAD);
 
     BeginTextureMode(mode7->target);
-    ClearBackground(COLOR_SKY);
+    ClearBackground(light->sky);
     BeginShaderMode(shader);
     ShaderSetTexture(shader, "levelTexture", ground);
     DrawRectangle(0, 0, VIEW_WIDTH, VIEW_HEIGHT, WHITE);
